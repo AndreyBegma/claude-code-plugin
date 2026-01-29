@@ -2,5 +2,5 @@
   "name": "code-review-skills",
   "version": "1.0.0",
   "description": "Security, dead-code, code-style, and full-audit analysis skills for Claude Code",
-  "skills": ["./skills/"]
+  "skills": "./skills/"
 }
