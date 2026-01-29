@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "code-review-skills",
-      "source": ".",
+      "source": "./",
       "description": "Security, dead-code, code-style, and full-audit analysis skills",
       "version": "1.0.0",
       "keywords": [
