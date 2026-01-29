@@ -1,12 +1,6 @@
 ---
 name: code-style
 description: Analyze code style consistency, naming conventions, patterns, and adherence to project conventions
-user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash
-context: fork
-agent: Explore
-model: sonnet
-argument-hint: "[directory or file path]"
 ---
 
 # Code Style Analyzer

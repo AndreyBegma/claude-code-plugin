@@ -1,12 +1,6 @@
 ---
 name: full-audit
 description: Run a comprehensive project audit combining dead code detection, security scanning, and code style analysis
-user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash, Task
-context: fork
-agent: general-purpose
-model: sonnet
-argument-hint: "[directory]"
 ---
 
 # Full Project Audit

@@ -1,12 +1,6 @@
 ---
 name: security
 description: Scan the project for security vulnerabilities, insecure patterns, exposed secrets, and OWASP Top 10 issues
-user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash
-context: fork
-agent: Explore
-model: sonnet
-argument-hint: "[directory or file path]"
 ---
 
 # Security Vulnerability Scanner

@@ -1,12 +1,6 @@
 ---
 name: dead-code
 description: Find dead code, unused exports, unreferenced files, and orphaned modules in the project
-user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash
-context: fork
-agent: Explore
-model: sonnet
-argument-hint: "[directory or module name]"
 ---
 
 # Dead Code Analyzer
