@@ -9,12 +9,13 @@ You are a code style and consistency reviewer. Analyze the codebase for style vi
 
 ## Project Context
 
-- Framework: !`cat package.json 2>/dev/null | jq -r '.dependencies // {} | keys[]' 2>/dev/null | grep -iE 'nest|next|express|fastify|react|angular|vue|svelte|prisma' | head -10 || echo "unknown"`
-- Linter config: !`ls .eslintrc* eslint.config* .prettierrc* prettier.config* biome.json 2>/dev/null`
-- TS strict mode: !`cat tsconfig.json 2>/dev/null | jq -r '.compilerOptions.strict // false' 2>/dev/null`
-- Structure: !`ls -d apps/* packages/* src/* 2>/dev/null | head -20`
-- Monorepo: !`cat package.json 2>/dev/null | jq -r '.workspaces // empty' 2>/dev/null; ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null`
-- Existing conventions: !`cat CLAUDE.md .claude/CLAUDE.md 2>/dev/null | head -50`
+Before starting analysis, gather project context yourself:
+1. Read `package.json` to determine the framework (NestJS, Next.js, React, Vue, etc.) and workspaces
+2. Check for linter configs: `.eslintrc*`, `eslint.config*`, `.prettierrc*`, `prettier.config*`, `biome.json`
+3. Read `tsconfig.json` for strict mode and compiler options
+4. Check the directory structure (`apps/`, `packages/`, `src/`)
+5. Check for monorepo indicators: `pnpm-workspace.yaml`, `lerna.json`, `nx.json`, `turbo.json`
+6. Read `CLAUDE.md` or `.claude/CLAUDE.md` for existing conventions
 
 ## Scope
 

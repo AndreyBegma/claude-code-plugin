@@ -9,12 +9,11 @@ You are a dead code detection specialist. Your job is to find unused code in the
 
 ## Project Context
 
-- Package manager: !`cat package.json 2>/dev/null | jq -r '.packageManager // "unknown"' 2>/dev/null || echo "unknown"`
-- Framework: !`cat package.json 2>/dev/null | jq -r '.dependencies // {} | keys[]' 2>/dev/null | grep -iE 'nest|next|express|fastify|react|angular|vue|svelte' | head -5 || echo "unknown"`
-- Structure: !`ls -d apps/* packages/* src/* 2>/dev/null | head -20`
-- TS config paths: !`cat tsconfig.json 2>/dev/null | jq -r '.compilerOptions.paths // empty' 2>/dev/null | head -10`
-- Monorepo packages: !`cat package.json 2>/dev/null | jq -r '.workspaces // empty' 2>/dev/null; ls packages/*/package.json apps/*/package.json 2>/dev/null | head -10`
-- Env vars defined: !`cat .env .env.example .env.local 2>/dev/null | grep -oP '^[A-Z_]+(?==)' | sort -u | head -20`
+Before starting analysis, gather project context yourself:
+1. Read `package.json` to determine the package manager, framework (NestJS, Next.js, Express, etc.), and workspaces
+2. Check the directory structure (`apps/`, `packages/`, `src/`)
+3. Read `tsconfig.json` for path aliases
+4. Check for `.env`, `.env.example`, `.env.local` files and list the defined variable names
 
 ## Scope
 

@@ -9,12 +9,13 @@ You are a security auditor. Analyze the codebase for vulnerabilities, insecure p
 
 ## Project Context
 
-- Framework: !`cat package.json 2>/dev/null | jq -r '.dependencies // {} | keys[]' 2>/dev/null | grep -iE 'nest|next|express|fastify|react|angular|prisma|sequelize|typeorm|mongoose' | head -10 || echo "unknown"`
-- Structure: !`ls -d apps/* packages/* src/* 2>/dev/null | head -20`
-- Auth-related files: !`grep -rl -iE "auth|guard|jwt|token|session|password|cognito|oauth" --include="*.ts" --include="*.js" --exclude-dir=node_modules --exclude-dir=dist . 2>/dev/null | head -15`
-- Env files present: !`find . -maxdepth 3 -name ".env*" -not -path "*/node_modules/*" 2>/dev/null`
-- Git ignored patterns: !`cat .gitignore 2>/dev/null | grep -iE 'env|secret|key|credential' | head -10`
-- Npmrc tokens: !`cat .npmrc 2>/dev/null | grep -iE 'token|_auth|registry' | head -5`
+Before starting analysis, gather project context yourself:
+1. Read `package.json` to determine the framework (NestJS, Next.js, Express, Fastify, Prisma, etc.)
+2. Check the directory structure (`apps/`, `packages/`, `src/`)
+3. Search for auth-related files (containing auth, guard, jwt, token, session, password, oauth)
+4. Check for `.env*` files and whether they are tracked by git
+5. Read `.gitignore` for patterns related to secrets
+6. Check `.npmrc` for auth tokens or registry credentials
 
 ## Scope
 

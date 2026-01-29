@@ -9,10 +9,10 @@ You are a senior code auditor. Run a comprehensive analysis of the project by de
 
 ## Project Context
 
-- Project name: !`cat package.json 2>/dev/null | jq -r '.name // "unknown"'`
-- Framework: !`cat package.json 2>/dev/null | jq -r '.dependencies // {} | keys[]' 2>/dev/null | grep -iE 'nest|next|express|fastify|react|angular|vue|prisma' | head -10 || echo "unknown"`
-- Structure: !`ls -d apps/* packages/* src/* 2>/dev/null | head -20`
-- Monorepo: !`cat package.json 2>/dev/null | jq -r '.workspaces // empty' 2>/dev/null; ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null`
+Before starting analysis, gather project context yourself:
+1. Read `package.json` to determine the project name, framework, and workspaces
+2. Check the directory structure (`apps/`, `packages/`, `src/`)
+3. Check for monorepo indicators: `pnpm-workspace.yaml`, `lerna.json`, `nx.json`, `turbo.json`
 
 ## Scope
 
