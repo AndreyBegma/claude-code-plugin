@@ -14,7 +14,7 @@ claude plugin add claude-code-analyzer-plugin
 |---|---|
 | `/ca-security` | Scan for security vulnerabilities (OWASP Top 10, secrets, injections) |
 | `/ca-dead-code` | Find unused packages, orphaned files, dead exports. **High token usage** — pass a path to limit scope |
-| `/ca-review` | Quick local code review (staged/unstaged changes, no GitHub interaction) |
+| `/ca-code-review` | Quick local code review (staged/unstaged changes, no GitHub interaction) |
 | `/ca-pr-review <PR#>` | Review a PR and post inline comments on GitHub |
 | `/ca-pr-prepare-merge <PR#>` | Extract generalizable rules from PR comments and open a PR updating CLAUDE.md |
 
@@ -33,10 +33,10 @@ All commands use the `ca-` prefix (code-analyzer) to avoid conflicts with built-
 /ca-dead-code apps/api
 
 # Review local changes
-/ca-review
+/ca-code-review
 
 # Review a specific file
-/ca-review src/services/user.service.ts
+/ca-code-review src/services/user.service.ts
 
 # Review PR #42 and post inline comments on GitHub
 /ca-pr-review 42
@@ -89,7 +89,7 @@ Each skill is a standalone `SKILL.md` with frontmatter metadata and instructions
 skills/
   security/SKILL.md          — /ca-security
   dead-code/SKILL.md         — /ca-dead-code
-  code-review/SKILL.md       — /ca-review
+  code-review/SKILL.md       — /ca-code-review
   pr-review/SKILL.md         — /ca-pr-review
   pr-prepare-merge/SKILL.md  — /ca-pr-prepare-merge
 .code-analyzer-config.json   — default configuration

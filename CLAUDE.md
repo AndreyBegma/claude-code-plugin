@@ -10,7 +10,7 @@ All commands use the `ca-` prefix (code-analyzer) to avoid conflicts with built-
 skills/
   security/SKILL.md          — /ca-security — Security vulnerability scanner (OWASP Top 10, secrets, injections)
   dead-code/SKILL.md         — /ca-dead-code — Dead code detector (unused exports, files, dependencies)
-  code-review/SKILL.md       — /ca-review — Local code review for style and correctness
+  code-review/SKILL.md       — /ca-code-review — Local code review for style and correctness
   pr-review/SKILL.md         — /ca-pr-review — Review a PR and post inline comments on GitHub
   pr-prepare-merge/SKILL.md  — /ca-pr-prepare-merge — Extract rules from PR comments and update CLAUDE.md via PR
 ```
@@ -46,7 +46,7 @@ skills/
 
 ---
 
-### 🔍 `/ca-review`
+### 🔍 `/ca-code-review`
 
 **Does:** Quick local code review for style and correctness — generic, project-agnostic
 
@@ -57,11 +57,11 @@ skills/
 3. Reviews: correctness, security, style, patterns
 4. Severity: HIGH / MEDIUM / LOW
 
-**Usage:** `/ca-review` (all local changes) or `/ca-review <path>` (specific file/directory)
+**Usage:** `/ca-code-review` (all local changes) or `/ca-code-review <path>` (specific file/directory)
 
 **Output:** Summary + Issues list + Verdict (APPROVE / REQUEST CHANGES)
 
-**Difference from `/ca-pr-review`:** `/ca-review` is a lightweight local review without GitHub interaction. `/ca-pr-review` posts inline comments on GitHub.
+**Difference from `/ca-pr-review`:** `/ca-code-review` is a lightweight local review without GitHub interaction. `/ca-pr-review` posts inline comments on GitHub.
 
 ---
 

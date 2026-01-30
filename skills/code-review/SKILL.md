@@ -1,5 +1,5 @@
 ---
-name: ca-review
+name: ca-code-review
 description: Quick code review for style and correctness. Use when asked to review local code changes.
 user-invocable: true
 ---
