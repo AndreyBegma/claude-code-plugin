@@ -76,6 +76,9 @@ gh api repos/OWNER/REPO/pulls/$ARGUMENTS/comments \
 ### Step 5: Add Label
 
 ```bash
+# Create the label if it doesn't exist (--force is a no-op if it already exists)
+gh label create "claude-reviewed" --description "Reviewed by Claude" --color "6f42c1" --force
+
 gh pr edit $ARGUMENTS --add-label "claude-reviewed"
 ```
 
