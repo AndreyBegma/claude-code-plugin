@@ -18,7 +18,7 @@ claude plugin add claude-code-analyzer-plugin
 | `/ca-pr-review <PR#>`        | Review a PR and post inline comments on GitHub                                                        |
 | `/ca-pr-prepare-merge <PR#>` | Extract generalizable rules from PR comments and open a PR updating CLAUDE.md                         |
 
-All commands use the `ca-` prefix (code-analyzer) to avoid conflicts with built-in or other plugin commands.
+All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-in or other plugin commands.
 
 ## Usage
 

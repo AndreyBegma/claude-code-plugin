@@ -42,6 +42,16 @@ If no `$ARGUMENTS` and project looks large:
 - Then focus on the largest app by file count
 - Skip the rest unless requested
 
+## Use TypeScript MCP (if available)
+
+If TypeScript MCP is available, use it for more accurate analysis:
+
+1. **Unused exports**: Call `findAllReferences()` on exported symbols — if zero references, it's dead
+2. **Compiler diagnostics**: Get unused variable/import warnings from `tsc`
+3. **Unreachable code**: TypeScript can detect unreachable code paths
+
+TypeScript MCP findings are HIGH CONFIDENCE — include them directly in the report.
+
 ## Analysis Phases (Sequential, Not Parallel)
 
 ### Phase 1: Unused Dependencies (Quick Win)

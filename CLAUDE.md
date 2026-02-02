@@ -48,11 +48,11 @@ skills/
 
 ### 🔍 `/ca-code-review`
 
-**Does:** Quick local code review for style and correctness — project-aware via CLAUDE.md and local skills
+**Does:** Quick local code review for style and correctness — project-aware via CLAUDE.md and project-local skills
 
 **Workflow:**
 
-1. Reads project `CLAUDE.md` and local skills (`.claude/skills/`, `skills/**/SKILL.md`) for project-specific rules
+1. Reads project `CLAUDE.md` and project-local skills (`.claude/skills/`) for project-specific rules
 2. Gets diff (staged/unstaged changes)
 3. Reviews: correctness, security, style, patterns
 4. Severity: CRITICAL / HIGH / MEDIUM / LOW
@@ -72,7 +72,7 @@ skills/
 **Workflow:**
 
 1. Fetches PR metadata, diff, and commit SHA
-2. Reads project `CLAUDE.md` and local skills (`.claude/skills/`, `skills/**/SKILL.md`) for project-specific rules
+2. Reads project `CLAUDE.md` and project-local skills (`.claude/skills/`) for project-specific rules
 3. Reviews all changed files (correctness, security, style, performance, types)
 4. Posts inline comments via `gh api` with severity labels
 5. Adds `claude-reviewed` label to the PR
@@ -148,6 +148,37 @@ The plugin reads `.code-analyzer-config.json` in the project root to customize a
 - `security.checkAuthentication` — enable/disable auth pattern checks
 - `security.checkInputValidation` — enable/disable input validation checks
 - `security.secretPatterns` — customize regex for secret detection
+
+---
+
+## Recommended MCP Servers
+
+For enhanced analysis, install these MCP servers:
+
+### Biome MCP
+
+Runs Biome linter and returns structured diagnostics (no CLI parsing needed).
+
+**Benefits for `/ca-code-review`:**
+
+- Get lint errors as structured JSON
+- Exact error locations with rule IDs
+- Auto-detect Biome config from project
+
+**Install:** `bunx @anthropic/mcp add biome`
+
+### TypeScript MCP
+
+Provides TypeScript compiler diagnostics and type information.
+
+**Benefits for `/ca-dead-code`:**
+
+- Find unused exports via `findAllReferences()`
+- Get compiler errors and warnings
+- Detect unreachable code paths
+- Type-aware dead code detection
+
+**Install:** `bunx @anthropic/mcp add typescript`
 
 ---
 

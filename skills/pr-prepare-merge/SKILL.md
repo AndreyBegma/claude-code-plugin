@@ -62,7 +62,7 @@ From all collected comments, keep ONLY comments that:
 Read existing project rules to avoid duplicates:
 
 1. **`CLAUDE.md`** — read and understand the existing rules and structure.
-2. **Local skills** — scan for `.claude/skills/**/*.md` and `skills/**/SKILL.md`. These may already contain conventions that overlap with PR feedback.
+2. **Project-local skills** — scan for `.claude/skills/**/*.md` in the target project. These may already contain conventions that overlap with PR feedback. **Do not** read the analyzer plugin's own skill files.
 
 If no `CLAUDE.md` exists, you will create one with a standard structure.
 
@@ -70,7 +70,7 @@ If no `CLAUDE.md` exists, you will create one with a standard structure.
 
 For each generalizable comment:
 
-1. Check if the rule already exists in `CLAUDE.md` or local skills — if yes, skip it
+1. Check if the rule already exists in `CLAUDE.md` or project-local skills — if yes, skip it
 2. Determine the best section to place it (create a new section if needed)
 3. Write the rule as a concise, imperative instruction (e.g., "Use `findUniqueOrThrow` instead of `findUnique` + null check")
 
@@ -159,5 +159,5 @@ Extracted generalizable coding rules from review comments on PR #<PR_NUMBER> and
 - **Read-only on the target PR** — do not modify, comment on, or merge the original PR
 - **Only modify CLAUDE.md** — do not touch any other files
 - **Preserve existing structure** — add rules to existing sections where they fit; only create new sections if necessary
-- **No duplicates** — if a rule already exists in CLAUDE.md or local skills (even worded differently), skip it
+- **No duplicates** — if a rule already exists in CLAUDE.md or project-local skills (even worded differently), skip it
 - **If no rules found** — report that no generalizable feedback was found and exit without creating a PR

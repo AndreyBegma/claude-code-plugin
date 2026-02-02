@@ -25,13 +25,23 @@ For PR reviews with GitHub comments, use the `ca-pr-review` skill instead.
 Gather project-specific rules (**in priority order**):
 
 1. **`CLAUDE.md`** — project-specific coding conventions, patterns, and rules. Highest priority.
-2. **Local skills** — scan for `.claude/skills/**/*.md` and any `skills/**/SKILL.md` in the project root. These may define architectural patterns, naming conventions, or workflow rules that the code should follow.
+2. **Project-local skills** — scan for `.claude/skills/**/*.md` in the target project. These may define architectural patterns, naming conventions, or workflow rules that the code should follow. **Do not** read the analyzer plugin's own skill files — only the target project's skills.
 
 Read all found files. Extract any conventions, patterns, or constraints that are relevant to code review (e.g., "services should not import from controllers", "use DTOs for API responses", naming rules, error handling patterns).
 
-**Priority**: `CLAUDE.md` > local skill conventions > general best practices.
+**Priority**: `CLAUDE.md` > project skill conventions > general best practices.
 
 If none of these exist, use general TypeScript/JavaScript best practices.
+
+## Step 1.5: Use Biome MCP (if available)
+
+If Biome MCP is available, use it to get structured lint diagnostics:
+
+1. Call Biome MCP `lint` on changed files
+2. Get structured errors with exact locations and rule IDs
+3. Include Biome violations in the review (respect project's `biome.json`)
+
+This is more accurate than manual style checking — Biome's rules take priority.
 
 ## Step 2: Get Changes
 

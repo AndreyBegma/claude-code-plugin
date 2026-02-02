@@ -35,19 +35,81 @@ COMMIT_SHA=$(gh pr view $ARGUMENTS --json headRefOid --jq '.headRefOid')
 Gather project-specific rules (**in priority order**):
 
 1. **`CLAUDE.md`** — project-specific coding conventions, patterns, and rules. Highest priority.
-2. **Local skills** — scan for `.claude/skills/**/*.md` and any `skills/**/SKILL.md` in the project root. These may define architectural patterns, naming conventions, or workflow rules that the code should follow.
+2. **Project-local skills** — scan for `.claude/skills/**/*.md` in the target project. These may define architectural patterns, naming conventions, or workflow rules that the code should follow. **Do not** read the analyzer plugin's own skill files — only the target project's skills.
 
-Read all found files. Extract any conventions, patterns, or constraints relevant to code review. **Priority**: `CLAUDE.md` > local skill conventions > general best practices.
+Read all found files. Extract any conventions, patterns, or constraints relevant to code review. **Priority**: `CLAUDE.md` > project skill conventions > built-in rules below > general best practices.
+
+### Step 2.5: Use Biome MCP (if available)
+
+If Biome MCP is available, use it to get structured lint diagnostics:
+
+1. Call Biome MCP `lint` on changed files
+2. Get structured errors with exact locations and rule IDs
+3. Include Biome violations in the review (respect project's `biome.json`)
+
+This is more accurate than manual style checking — Biome's rules take priority.
 
 ### Step 3: Review the Diff
 
-Analyze every changed file in the diff. Focus on:
+Analyze every changed file in the diff. Check for:
 
-- **Correctness**: Logic errors, missing edge cases, off-by-one errors
-- **Security**: Injection, auth bypass, secrets, OWASP Top 10 (reference the security skill categories)
-- **Style**: Violations of CLAUDE.md and local skill conventions
-- **Performance**: N+1 queries, missing indexes, unnecessary re-renders
-- **Types**: Unsafe casts, `any` usage, missing validation
+#### Correctness
+
+- Logic errors, missing edge cases, off-by-one errors
+- Broken control flow (unreachable code, missing returns)
+- Incorrect async/await usage (missing await, unhandled promises)
+
+#### Security
+
+- Injection vulnerabilities (SQL, NoSQL, command, template)
+- Hardcoded secrets or credentials
+- Missing input validation on user-facing endpoints
+- Auth bypass, OWASP Top 10 (reference the security skill categories)
+
+#### Style (defer to CLAUDE.md rules first, then these defaults)
+
+- Naming conventions (consistency within the project)
+- `const` vs `let` — prefer `const` unless reassignment is necessary
+- Always prefer destructuring
+- Early returns over deep nesting (invert conditions, return early)
+- Braces on all control flow statements — never single-line `if (!x) return`
+- No type assertions (`as`, `!`) without justification
+- No `any` types without justification
+- Import ordering — follow Biome rules (see `biome.json`)
+- Avoid optionality/nullability unless necessary
+- Avoid empty strings as sentinel values
+- Avoid unnecessary aliases (`password` → `pwd` is forbidden)
+- Use `camelCase` for constants, not `CAPITAL_CASE`
+- Avoid one-letter variable names except loop indexes (`i`, `j`, `k`)
+- Respect ESLint, tsconfig, and Biome settings in the project
+
+#### React/NextJS
+
+- Never report "Missing React import" — not needed in modern React
+- Wrap callbacks in `useCallback`, computed objects in `useMemo`
+- Do not memoize simple values (strings, numbers, booleans)
+- Mark components with `React.FC`: `const MyComponent: React.FC = () => ...`
+- Use explicit strings in JSX: `<>{'text'}</>` not `<>text</>`
+- Export directly: `export const X = () => ...` not `const X = ...; export { X }`
+- Avoid extra `<div>`s — use fragments `<>...</>` when possible
+- Put loaders in parent components instead of passing `isLoading` props
+- Extract all components from page files to separate files
+
+#### NestJS
+
+- Never add exports/imports to modules unless necessary
+- Use typed EntityId (`UserId`, `VesselId`) instead of plain strings
+
+#### Performance
+
+- N+1 query patterns
+- Missing indexes, unnecessary re-renders
+
+#### Patterns
+
+- Missing error handling on I/O operations
+- Unused imports or variables introduced by the change
+- Dead code introduced by the change
 
 Assign severity to each issue:
 
