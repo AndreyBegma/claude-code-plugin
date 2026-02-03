@@ -118,9 +118,30 @@ Assign severity to each issue:
 - **MEDIUM** — style violation, suboptimal pattern, missing error handling
 - **LOW** — nitpick, naming suggestion, minor improvement
 
-### Step 4: Post Comments on GitHub
+### Step 4: Confirm with User
 
-For each issue found, post an inline comment on the PR:
+**Never post comments without user confirmation.** Show a numbered preview of all findings:
+
+```
+Found N issues in PR #$ARGUMENTS:
+
+1. [CRITICAL] SQL injection in UserService.ts:45
+2. [HIGH] Missing auth guard on admin.controller.ts:23
+3. [MEDIUM] Unused import in utils.ts:1
+4. [LOW] Naming: prefer camelCase in config.ts:12
+
+Post all 4 comments to GitHub? (yes / pick / no)
+```
+
+- **yes** — post all comments to GitHub
+- **pick** — go through each issue one by one, showing full comment body, asking yes/no
+- **no** — output the review locally only, do not post any comments
+
+Wait for the user's response before proceeding. If the user picks `no`, skip Step 5 (Post) and Step 6 (Label) — go directly to the Output section with all issues listed as "local only".
+
+### Step 5: Post Comments on GitHub
+
+For each **confirmed** issue, post an inline comment on the PR:
 
 ```bash
 gh api repos/OWNER/REPO/pulls/$ARGUMENTS/comments \
@@ -140,7 +161,7 @@ gh api repos/OWNER/REPO/pulls/$ARGUMENTS/comments \
 - If a line is not part of the diff (context-only line), place the comment on the nearest changed line instead and reference the actual location in the comment body
 - If the `gh api` call returns a 422 error ("line could not be resolved"), retry on the nearest changed line
 
-### Step 5: Add Label
+### Step 6: Add Label
 
 ```bash
 # Create the label if it doesn't exist (--force is a no-op if it already exists)

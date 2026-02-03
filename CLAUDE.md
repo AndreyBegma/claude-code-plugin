@@ -13,6 +13,8 @@ skills/
   code-review/SKILL.md       — /ca-code-review — Local code review for style and correctness
   pr-review/SKILL.md         — /ca-pr-review — Review a PR and post inline comments on GitHub
   pr-prepare-merge/SKILL.md  — /ca-pr-prepare-merge — Extract rules from PR comments and update CLAUDE.md via PR
+  debug/SKILL.md             — /ca-debug — Deep debugger: trace root cause from error, stack trace, or symptom
+  issue/SKILL.md             — /ca-issue — Create GitHub issues from analysis findings with user confirmation
 ```
 
 ## Skills Overview
@@ -102,6 +104,41 @@ skills/
 
 ---
 
+### 🐛 `/ca-debug`
+
+**Does:** Deep bug analysis — traces root cause through call chain and data flow
+
+**Workflow:**
+
+1. Parses input (error message, stack trace, issue number, symptom description)
+2. Gathers project context (framework, structure, conventions)
+3. Traces the call chain backwards from the error point to the origin
+4. Analyzes data flow: where the value was created, mutated, and broke
+5. Checks test coverage and suggests a regression test
+
+**Usage:** `/ca-debug "TypeError: Cannot read property 'id' of undefined at UserService.ts:45"` or `/ca-debug #123` (GitHub issue)
+
+**Output:** Root cause diagnosis with call chain, data flow, suggested fix, and regression test
+
+---
+
+### 📋 `/ca-issue`
+
+**Does:** Creates GitHub issues from analysis findings — with user confirmation before each issue
+
+**Workflow:**
+
+1. Collects findings from previous analysis (or from description/file)
+2. Checks for duplicates via `gh issue list --search`
+3. Shows a preview of all issues and asks for confirmation (yes / pick / no)
+4. Creates confirmed issues with labels and code context
+
+**Usage:** `/ca-issue` (after analysis) or `/ca-issue "bug description"` or `/ca-issue src/file.ts`
+
+**Output:** Created issues with numbers + report of skipped items (duplicates, declined)
+
+---
+
 ## Configuration
 
 The plugin reads `.code-analyzer-config.json` in the project root to customize analysis:
@@ -159,11 +196,12 @@ For enhanced analysis, install these MCP servers:
 
 Runs Biome linter and returns structured diagnostics (no CLI parsing needed).
 
-**Benefits for `/ca-code-review`:**
+**Benefits for `/ca-code-review` and `/ca-debug`:**
 
 - Get lint errors as structured JSON
 - Exact error locations with rule IDs
 - Auto-detect Biome config from project
+- (`/ca-debug`) Lint violations near the error point often correlate with the root cause
 
 **Install:** `bunx @anthropic/mcp add biome`
 
@@ -171,12 +209,13 @@ Runs Biome linter and returns structured diagnostics (no CLI parsing needed).
 
 Provides TypeScript compiler diagnostics and type information.
 
-**Benefits for `/ca-dead-code`:**
+**Benefits for `/ca-dead-code` and `/ca-debug`:**
 
 - Find unused exports via `findAllReferences()`
 - Get compiler errors and warnings
 - Detect unreachable code paths
 - Type-aware dead code detection
+- (`/ca-debug`) Trace call chains via `findAllReferences()`, check real types at error point via `getTypeAtPosition()`
 
 **Install:** `bunx @anthropic/mcp add typescript`
 

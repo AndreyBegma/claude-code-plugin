@@ -17,6 +17,8 @@ claude plugin add claude-code-analyzer-plugin
 | `/ca-code-review`            | Quick local code review (staged/unstaged changes, no GitHub interaction)                              |
 | `/ca-pr-review <PR#>`        | Review a PR and post inline comments on GitHub                                                        |
 | `/ca-pr-prepare-merge <PR#>` | Extract generalizable rules from PR comments and open a PR updating CLAUDE.md                         |
+| `/ca-debug <error\|#issue>`  | Deep debugging — trace root cause from error message, stack trace, symptom, or GitHub issue            |
+| `/ca-issue [description]`    | Create GitHub issues from analysis findings — with duplicate check and user confirmation               |
 
 All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-in or other plugin commands.
 
@@ -43,6 +45,24 @@ All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-
 
 # Extract rules from PR #42 comments into CLAUDE.md
 /ca-pr-prepare-merge 42
+
+# Debug from error message
+/ca-debug "TypeError: Cannot read property 'id' of undefined at UserService.ts:45"
+
+# Debug from GitHub issue
+/ca-debug #123
+
+# Debug from symptom
+/ca-debug "login fails when email contains +"
+
+# Create issues from last analysis
+/ca-issue
+
+# Create issue from description
+/ca-issue "Login fails when email contains special characters"
+
+# Inspect file and create issues
+/ca-issue src/api/handler.ts
 ```
 
 ## Configuration
@@ -96,6 +116,8 @@ skills/
   code-review/SKILL.md       — /ca-code-review
   pr-review/SKILL.md         — /ca-pr-review
   pr-prepare-merge/SKILL.md  — /ca-pr-prepare-merge
+  debug/SKILL.md             — /ca-debug
+  issue/SKILL.md             — /ca-issue
 .code-analyzer-config.json   — default configuration
 .claude-plugin/
   plugin.json                — plugin manifest

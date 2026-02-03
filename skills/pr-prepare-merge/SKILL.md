@@ -81,7 +81,34 @@ For each generalizable comment:
 - Include a brief "why" only if not obvious
 - Include a bad/good code example ONLY if the pattern is non-trivial
 
-## Step 5: Create PR
+## Step 5: Confirm with User
+
+**Never create a PR without user confirmation.** Show a numbered preview of all extracted rules:
+
+```
+Extracted N rules from PR #$ARGUMENTS:
+
+1. "Use findUniqueOrThrow instead of findUnique + null check"
+   → Source: @reviewer — "we should always use the throwing variant"
+
+2. "Services must not import from controllers"
+   → Source: @lead — "this breaks our layered architecture"
+
+3. "Use Decimal.js for all monetary values"
+   → Source: @reviewer — "floating point will cause rounding bugs"
+
+Skipped: 5 comments (not generalizable / duplicates / bot)
+
+Add all 3 rules to CLAUDE.md and create PR? (yes / pick / no)
+```
+
+- **yes** — include all rules, create the PR
+- **pick** — go through each rule one by one, asking yes/no
+- **no** — stop, do not create a branch or PR
+
+Wait for the user's response before proceeding. If the user picks `no`, skip to Step 7 (Output) and report that no PR was created.
+
+## Step 6: Create PR
 
 ```bash
 # Create a new branch from main
@@ -134,7 +161,7 @@ Extracted generalizable coding rules from review comments on PR #<PR_NUMBER> and
 - Rules were placed in the most appropriate section of CLAUDE.md
 ```
 
-## Step 6: Output
+## Step 7: Output
 
 ```
 ## PR Prepare Merge: #$ARGUMENTS
