@@ -47,6 +47,7 @@ gh issue list --state open --search "<key terms from the finding>" --limit 5
 ```
 
 If a similar issue already exists:
+
 - Show the existing issue number and title
 - Mark the finding as **SKIP (duplicate of #N)**
 - Do not include it in the confirmation list
@@ -91,13 +92,14 @@ gh issue create --title "<title>" --body "<body>" --label "<labels>"
 ```
 
 Examples:
+
 - `[CRITICAL] SQL injection via string interpolation — UserService.ts:45`
 - `[HIGH] Missing authentication on admin endpoint — admin.controller.ts:23`
 - `[BUG] Login fails when email contains special characters`
 
 ### Issue Body Format
 
-```markdown
+````markdown
 ## Description
 
 [Clear explanation of the problem]
@@ -118,7 +120,7 @@ Examples:
 ## Found By
 
 Code Sentinel `/ca-issue` — automated analysis
-```
+````
 
 ### Labels
 
@@ -131,15 +133,18 @@ Apply labels based on issue type. Create labels if they don't exist:
 - Always add: `claude-generated`
 
 Severity labels:
+
 - CRITICAL → `priority: critical`
 - HIGH → `priority: high`
 - MEDIUM → `priority: medium`
 
-To create a missing label:
+To create a missing label, run this command (ignore errors if label already exists):
 
 ```bash
-gh label create "claude-generated" --description "Issue created by Code Sentinel" --color "c5def5" 2>/dev/null || true
+gh label create "claude-generated" --description "Issue created by Code Sentinel" --color "c5def5" --force
 ```
+
+The `--force` flag creates the label if it doesn't exist or updates it if it does.
 
 ## Step 5: Report
 

@@ -4,9 +4,23 @@ AI code guardian for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 ## Installation
 
+### Option 1: Clone to your Claude Code skills directory
+
 ```bash
-claude plugin add claude-code-analyzer-plugin
+git clone https://github.com/your-org/claude-code-analyzer-plugin.git ~/.claude/skills/code-sentinel
 ```
+
+### Option 2: Add as a submodule in your project
+
+```bash
+git submodule add https://github.com/your-org/claude-code-analyzer-plugin.git .claude/skills/code-sentinel
+```
+
+### Option 3: Copy skills directly
+
+Copy the `skills/` folder contents into your project's `.claude/skills/` directory.
+
+After installation, the `/ca-*` commands will be available in Claude Code.
 
 ## Commands
 
@@ -17,8 +31,8 @@ claude plugin add claude-code-analyzer-plugin
 | `/ca-code-review`            | Quick local code review (staged/unstaged changes, no GitHub interaction)                              |
 | `/ca-pr-review <PR#>`        | Review a PR and post inline comments on GitHub                                                        |
 | `/ca-pr-prepare-merge <PR#>` | Extract generalizable rules from PR comments and open a PR updating CLAUDE.md                         |
-| `/ca-debug <error\|#issue>`  | Deep debugging — trace root cause from error message, stack trace, symptom, or GitHub issue            |
-| `/ca-issue [description]`    | Create GitHub issues from analysis findings — with duplicate check and user confirmation               |
+| `/ca-debug <error\|#issue>`  | Deep debugging — trace root cause from error message, stack trace, symptom, or GitHub issue           |
+| `/ca-issue [description]`    | Create GitHub issues from analysis findings — with duplicate check and user confirmation              |
 
 All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-in or other plugin commands.
 
@@ -118,12 +132,24 @@ skills/
   pr-prepare-merge/SKILL.md  — /ca-pr-prepare-merge
   debug/SKILL.md             — /ca-debug
   issue/SKILL.md             — /ca-issue
-.code-analyzer-config.json   — default configuration
-.claude-plugin/
-  plugin.json                — plugin manifest
-  marketplace.json           — marketplace metadata
 CLAUDE.md                    — internal project instructions
+README.md                    — this file
 ```
+
+## Requirements
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
+- [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated (for PR/issue commands)
+- Git repository initialized in the target project
+
+## Recommended MCP Servers
+
+For enhanced analysis accuracy, install these optional MCP servers:
+
+- **Biome MCP** — structured lint diagnostics for code review
+- **TypeScript MCP** — type-aware dead code detection and debugging
+
+See [CLAUDE.md](CLAUDE.md) for installation instructions.
 
 ## License
 

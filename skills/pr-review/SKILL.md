@@ -16,19 +16,28 @@ You are a senior code reviewer. Review a PR and post findings as inline comments
 
 ### Step 1: Gather Context
 
-```bash
-# Get repo owner/name
-REPO=$(gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"')
+Run these commands **one at a time** (do not chain with `&&` or `|`):
 
-# Get PR metadata
-gh pr view $ARGUMENTS
+1. Get repo info:
 
-# Get the diff
-gh pr diff $ARGUMENTS
+   ```bash
+   gh repo view --json owner,name
+   ```
 
-# Get commit SHA (needed for posting comments)
-COMMIT_SHA=$(gh pr view $ARGUMENTS --json headRefOid --jq '.headRefOid')
-```
+   Parse the JSON response to extract `owner.login` and `name`.
+
+2. Get PR metadata:
+
+   ```bash
+   gh pr view $ARGUMENTS --json title,body,author,state,headRefOid,baseRefName,headRefName
+   ```
+
+   Save `headRefOid` as `COMMIT_SHA` for posting comments later.
+
+3. Get the diff:
+   ```bash
+   gh pr diff $ARGUMENTS
+   ```
 
 ### Step 2: Read Project Rules
 
@@ -141,16 +150,18 @@ Wait for the user's response before proceeding. If the user picks `no`, skip Ste
 
 ### Step 5: Post Comments on GitHub
 
-For each **confirmed** issue, post an inline comment on the PR:
+For each **confirmed** issue, post an inline comment on the PR.
+
+**Command template** (substitute OWNER, REPO, COMMIT_SHA, and issue details):
 
 ```bash
-gh api repos/OWNER/REPO/pulls/$ARGUMENTS/comments \
-  --method POST \
-  -f body="**[SEVERITY]** description" \
-  -f commit_id="COMMIT_SHA" \
-  -f path="file/path.ts" \
-  -F line=LINE_NUMBER \
-  -f side="RIGHT"
+gh api repos/OWNER/REPO/pulls/PR_NUMBER/comments --method POST -f body="**[SEVERITY]** description" -f commit_id="COMMIT_SHA" -f path="file/path.ts" -F line=LINE_NUMBER -f side="RIGHT"
+```
+
+**Example with real values:**
+
+```bash
+gh api repos/acme/backend/pulls/18/comments --method POST -f body="**[HIGH]** Missing null check" -f commit_id="abc123def" -f path="src/user.service.ts" -F line=45 -f side="RIGHT"
 ```
 
 **CRITICAL line number rules:**
@@ -163,12 +174,18 @@ gh api repos/OWNER/REPO/pulls/$ARGUMENTS/comments \
 
 ### Step 6: Add Label
 
-```bash
-# Create the label if it doesn't exist (--force is a no-op if it already exists)
-gh label create "claude-reviewed" --description "Reviewed by Claude" --color "6f42c1" --force
+Run these commands **one at a time**:
 
-gh pr edit $ARGUMENTS --add-label "claude-reviewed"
-```
+1. Create the label if it doesn't exist:
+
+   ```bash
+   gh label create "claude-reviewed" --description "Reviewed by Claude" --color "6f42c1" --force
+   ```
+
+2. Add label to the PR:
+   ```bash
+   gh pr edit $ARGUMENTS --add-label "claude-reviewed"
+   ```
 
 If the label command fails (e.g., due to project settings), note it in the output but do not treat it as an error.
 
@@ -176,14 +193,34 @@ If the label command fails (e.g., due to project settings), note it in the outpu
 
 When no `$ARGUMENTS` is provided, review the current branch locally.
 
-Detect the base branch automatically:
+Detect the base branch:
 
-```bash
-# Try the upstream tracking branch first, then fall back to develop
-BASE=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null | sed 's|origin/||' || echo "develop")
-git diff $BASE...HEAD
-git log $BASE..HEAD --oneline
-```
+1. Check for upstream tracking branch:
+
+   ```bash
+   git rev-parse --abbrev-ref @{upstream}
+   ```
+
+   If this fails, check which default branch exists:
+
+   ```bash
+   git show-ref --verify --quiet refs/heads/main
+   ```
+
+   If `main` exists, use it. Otherwise use `develop`. If the upstream command returns something like `origin/main`, strip the `origin/` prefix.
+
+2. Get the diff against base:
+
+   ```bash
+   git diff develop...HEAD
+   ```
+
+   (Replace `develop` with the detected base branch)
+
+3. Get commit log:
+   ```bash
+   git log develop..HEAD --oneline
+   ```
 
 Review changes using the same criteria. Do NOT post GitHub comments for local-only review.
 

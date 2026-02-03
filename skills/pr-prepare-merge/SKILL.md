@@ -14,24 +14,40 @@ You are a senior engineering standards curator. Given a PR number, you review al
 
 ## Step 1: Gather Context
 
-```bash
-# Get repo owner/name
-gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
+Run these commands **one at a time** (do not chain):
 
-# Get PR details
-gh pr view $ARGUMENTS --json title,body,author,baseRefName,headRefName
+1. Get repo info:
 
-# Get all review comments (inline code comments)
-gh api repos/OWNER/REPO/pulls/$ARGUMENTS/comments --paginate
+   ```bash
+   gh repo view --json owner,name
+   ```
 
-# Get all issue-level comments (general discussion)
-gh api repos/OWNER/REPO/issues/$ARGUMENTS/comments --paginate
+   Parse the JSON to extract `owner.login` and `name`. Use these as `OWNER` and `REPO` below.
 
-# Get all review bodies (approve/request-changes comments)
-gh api repos/OWNER/REPO/pulls/$ARGUMENTS/reviews --paginate
-```
+2. Get PR details:
 
-Replace `OWNER/REPO` with the values from the first command.
+   ```bash
+   gh pr view $ARGUMENTS --json title,body,author,baseRefName,headRefName
+   ```
+
+3. Get all review comments (inline code comments):
+
+   ```bash
+   gh api repos/OWNER/REPO/pulls/$ARGUMENTS/comments --paginate
+   ```
+
+4. Get all issue-level comments (general discussion):
+
+   ```bash
+   gh api repos/OWNER/REPO/issues/$ARGUMENTS/comments --paginate
+   ```
+
+5. Get all review bodies (approve/request-changes comments):
+   ```bash
+   gh api repos/OWNER/REPO/pulls/$ARGUMENTS/reviews --paginate
+   ```
+
+Replace `OWNER` and `REPO` with the values from command 1.
 
 ## Step 2: Filter Comments
 
@@ -64,7 +80,33 @@ Read existing project rules to avoid duplicates:
 1. **`CLAUDE.md`** — read and understand the existing rules and structure.
 2. **Project-local skills** — scan for `.claude/skills/**/*.md` in the target project. These may already contain conventions that overlap with PR feedback. **Do not** read the analyzer plugin's own skill files.
 
-If no `CLAUDE.md` exists, you will create one with a standard structure.
+If no `CLAUDE.md` exists, create one with this structure:
+
+```markdown
+# Project Name
+
+Brief description of the project.
+
+## Architecture
+
+- [Layer/module structure rules]
+
+## Code Style
+
+- [Naming conventions, formatting rules]
+
+## Patterns
+
+- [Preferred patterns and anti-patterns]
+
+## Security
+
+- [Security-related rules]
+
+## Testing
+
+- [Testing conventions]
+```
 
 ## Step 4: Draft Updates
 
@@ -110,33 +152,52 @@ Wait for the user's response before proceeding. If the user picks `no`, skip to 
 
 ## Step 6: Create PR
 
-```bash
-# Create a new branch from main
-git checkout main
-git pull origin main
-git checkout -b claude-instructions-from-pr-<PR_NUMBER>
+Run these commands **one at a time**:
 
-# Apply the CLAUDE.md changes (use Edit tool)
+1. Switch to main and update:
 
-# Commit (without Co-Authored-By or AI attribution)
-git add CLAUDE.md
-git commit -m "Update CLAUDE.md with rules from PR #<PR_NUMBER>" --no-gpg-sign
+   ```bash
+   git checkout main
+   ```
 
-# Push and create PR
-git push -u origin claude-instructions-from-pr-<PR_NUMBER>
-```
+   ```bash
+   git pull origin main
+   ```
 
-**Important:** Do NOT add `Co-Authored-By`, `Signed-off-by`, or any AI/Claude attribution to commits. The commit message should be clean and concise.
+2. Create new branch:
 
-Create the PR with `gh pr create`. After creating the PR, add a label:
+   ```bash
+   git checkout -b claude-instructions-from-pr-<PR_NUMBER>
+   ```
 
-```bash
-# Create the label if it doesn't exist
-gh label create "claude-rules" --description "Auto-extracted rules from PR comments" --color "1d76db" --force
+3. Apply the CLAUDE.md changes using the Edit tool.
 
-# Add label to the newly created PR
-gh pr edit --add-label "claude-rules"
-```
+4. Stage and commit:
+
+   ```bash
+   git add CLAUDE.md
+   ```
+
+   ```bash
+   git commit -m "Update CLAUDE.md with rules from PR #<PR_NUMBER>" --no-gpg-sign
+   ```
+
+5. Push the branch:
+   ```bash
+   git push -u origin claude-instructions-from-pr-<PR_NUMBER>
+   ```
+
+**Important:** Do NOT add `Co-Authored-By`, `Signed-off-by`, or any AI/Claude attribution to commits.
+
+6. Create the PR with `gh pr create`.
+
+7. Add label (run separately):
+   ```bash
+   gh label create "claude-rules" --description "Auto-extracted rules from PR comments" --color "1d76db" --force
+   ```
+   ```bash
+   gh pr edit --add-label "claude-rules"
+   ```
 
 Use the following structure for the body (replace placeholders with actual values):
 
