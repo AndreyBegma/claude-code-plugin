@@ -10,15 +10,10 @@ You are a senior debugging specialist. Given a bug description, systematically t
 
 ## Token Efficiency
 
+- Skip `node_modules`, `dist`, `.next`, `build` and patterns from `.code-analyzer-config.json`
 - Follow the call chain **only as deep as needed** — stop when root cause is found
 - Focus on the **most likely hypothesis first**, then alternatives
-- If codebase is large, scope to relevant modules only
 - Max trace depth: 5 levels unless strong reason to go deeper
-
-**Always respect exclusions** from `.code-analyzer-config.json`:
-
-- Skip `node_modules`, `dist`, `.next`, `build` by default
-- Skip patterns: `@generated`, `migrations`, `seeds`
 
 ## Inputs
 
@@ -66,26 +61,14 @@ If `$ARGUMENTS` is empty, ask the user what to debug.
 
 ## Step 2.5: Use MCP Tools (if available)
 
-### TypeScript MCP
+**TypeScript MCP** (prefer over grep):
 
-If TypeScript MCP is available, **prefer it over grep** for tracing:
+- `getDiagnostics()` — compiler errors, type issues
+- `findAllReferences()` — exact callers
+- `getDefinition()` — jump to definitions
+- `getTypeAtPosition()` — check real types
 
-1. **`getDiagnostics()`** on the error file — compiler may already know the bug (type errors, unreachable code, missing properties)
-2. **`findAllReferences()`** on the failing function — get exact callers without grep noise
-3. **`getDefinition()`** — jump to function/type definitions instantly
-4. **`getTypeAtPosition()`** on suspicious variables — check the real type at the error point (catches `any` leaks, union types narrowing incorrectly)
-
-TypeScript MCP results are **more accurate than grep** — use them as the primary source for call chain and data flow analysis in Step 3.
-
-### Biome MCP
-
-If Biome MCP is available, run lint on the error file and surrounding files:
-
-1. Call Biome `lint` on the file where the error occurs
-2. Look for lint violations near the error location — they often correlate with bugs (unused variables, suspicious comparisons, complexity warnings)
-3. Check if Biome reports issues in files along the call chain
-
-Biome findings are **supplementary** — they may reveal the root cause directly or point to related problems.
+**Biome MCP**: Run `lint` on error file — violations often correlate with bugs.
 
 ## Step 3: Trace the Root Cause
 
@@ -133,6 +116,171 @@ git diff HEAD~5 -- <affected_file>
 ```
 
 Look for recent changes that could have introduced the issue.
+
+### 3e. Git Bisect for Regressions
+
+If you can identify a "known good" state (commit, tag, or date), use git bisect to find the exact commit that introduced the bug:
+
+1. **Start bisect session:**
+
+   ```bash
+   git bisect start
+   git bisect bad HEAD
+   git bisect good <last_known_good_commit>
+   ```
+
+2. **For each commit git checks out:**
+   - Test if the bug exists
+   - Mark with `git bisect good` or `git bisect bad`
+   - Git will narrow down to the exact breaking commit
+
+3. **When found, analyze the breaking commit:**
+
+   ```bash
+   git show <bad_commit> --stat
+   git show <bad_commit> -- <affected_file>
+   ```
+
+4. **End bisect:** `git bisect reset`
+
+### 3f. 5 Whys Analysis
+
+Apply the "5 Whys" technique to drill down to the true root cause:
+
+1. **Why #1:** Why did the error occur?
+   → e.g., "Variable `user` was undefined"
+
+2. **Why #2:** Why was `user` undefined?
+   → e.g., "The API call returned null"
+
+3. **Why #3:** Why did the API return null?
+   → e.g., "The user ID didn't exist in the database"
+
+4. **Why #4:** Why didn't the user ID exist?
+   → e.g., "The ID came from a stale cache"
+
+5. **Why #5:** Why was the cache stale?
+   → e.g., "Cache invalidation wasn't triggered on user deletion"
+   → **ROOT CAUSE FOUND**
+
+Document each "Why" step in the output. Stop when you reach an actionable root cause (usually 3-5 levels deep).
+
+### 3g. Hypothesis-Driven Debugging
+
+When the cause is unclear, systematically test hypotheses:
+
+1. **List hypotheses** (most likely first):
+
+   ```
+   H1: Race condition between API calls (likelihood: HIGH)
+   H2: Stale closure capturing old state (likelihood: MEDIUM)
+   H3: Type coercion issue string vs number (likelihood: LOW)
+   ```
+
+2. **Test each hypothesis:**
+   - Find evidence in code that supports or refutes it
+   - Check logs, git history, or runtime behavior
+   - Mark as CONFIRMED, REFUTED, or INCONCLUSIVE
+
+3. **Document the process:**
+
+   ```
+   H1: Race condition — REFUTED (operations are sequential, confirmed via code flow)
+   H2: Stale closure — CONFIRMED (useEffect dependency array missing `userId`)
+   ```
+
+4. **If all hypotheses refuted:** generate new hypotheses based on what you learned
+
+### 3h. Flaky Bug Detection
+
+If the bug appears intermittently or "works on my machine":
+
+1. **Identify timing-dependent code:**
+   - `setTimeout`, `setInterval`, `Promise.race`
+   - Missing `await` before async operations
+   - Event handlers that assume order of execution
+
+2. **Check for race conditions:**
+   - Parallel API calls with shared state
+   - Multiple `useEffect` hooks modifying same state
+   - Database operations without proper transactions
+
+3. **Look for non-deterministic patterns:**
+   - `Object.keys()` iteration order assumptions
+   - `Math.random()` or `Date.now()` in logic
+   - Tests depending on execution order
+
+4. **Environment-specific factors:**
+   - Network latency differences
+   - CPU speed affecting timing
+   - Different timezone/locale settings
+
+**Common flaky patterns:**
+
+- Test passes locally, fails in CI → timing, env vars, or resource limits
+- Bug appears under load → race condition or resource exhaustion
+- Bug appears randomly → uninitialized state or timing dependency
+
+### 3i. Dependency Debugging
+
+If "nothing changed but it broke":
+
+1. **Check lock file changes:**
+
+   ```bash
+   git diff HEAD~10 -- package-lock.json yarn.lock pnpm-lock.yaml
+   ```
+
+2. **Identify recently updated packages:**
+   - Look for minor/patch bumps that could have breaking changes
+   - Check transitive dependencies that auto-updated
+
+3. **Compare working vs broken:**
+
+   ```bash
+   npm ls <suspicious-package>
+   ```
+
+4. **Check for known issues:**
+   - Search package's GitHub issues for similar problems
+   - Check changelog for breaking changes
+
+**Common dependency issues:**
+
+- Peer dependency mismatch
+- Multiple versions of same package (React, lodash)
+- Native module binary mismatch after Node update
+
+### 3j. Logging Injection Points
+
+When static analysis is insufficient, suggest strategic logging:
+
+1. **Entry/exit logging** for suspected functions:
+
+   ```
+   Suggest adding: console.log('[functionName] input:', args) at file.ts:line
+   Suggest adding: console.log('[functionName] output:', result) at file.ts:line
+   ```
+
+2. **State change logging** for suspected variables:
+
+   ```
+   Suggest adding: console.log('[varName] changed:', oldVal, '→', newVal) at file.ts:line
+   ```
+
+3. **Branch logging** for conditional paths:
+
+   ```
+   Suggest adding: console.log('[condition] took branch:', branchName) at file.ts:line
+   ```
+
+4. **Async boundary logging:**
+   ```
+   Suggest adding: console.log('[async] before await') at file.ts:line
+   Suggest adding: console.log('[async] after await, result:', result) at file.ts:line
+   ```
+
+Output as a numbered list of specific locations where logging would help diagnose the issue.
 
 ## Step 4: Verify Hypothesis
 

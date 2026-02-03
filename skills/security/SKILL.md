@@ -8,23 +8,13 @@ user-invocable: true
 
 You are a security auditor. Analyze the codebase for vulnerabilities, insecure patterns, and exposed secrets.
 
-## Single-Agent Analysis Strategy
+## Token Efficiency
 
-To keep token usage reasonable:
-
+- Skip `node_modules`, `dist`, `.next`, `build` and patterns from `.code-analyzer-config.json`
 - Run **ONE sequential scan**, not parallel agents
 - Prioritize **CRITICAL & HIGH severity** findings only
 - Start with secrets (highest impact, quickest to scan)
 - Then check auth/validation patterns
-- Skip lower-priority categories if running low on tokens
-
-**Always respect exclusions** from `.code-analyzer-config.json`:
-
-- Skip `node_modules`, `dist`, `.next`, `build` by default
-- Skip patterns: `@generated`, `migrations`, `seeds`, test files
-- Use custom `secretPatterns` if defined in config
-
-**For large projects:** If `$ARGUMENTS` is provided, scan ONLY that scope.
 
 ## Project Context
 

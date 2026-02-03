@@ -8,6 +8,7 @@ All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-
 
 ```
 skills/
+  _shared/style-rules.md     — Shared style rules (referenced by code-review and pr-review)
   security/SKILL.md          — /ca-security — Security vulnerability scanner (OWASP Top 10, secrets, injections)
   dead-code/SKILL.md         — /ca-dead-code — Dead code detector (unused exports, files, dependencies)
   code-review/SKILL.md       — /ca-code-review — Local code review for style and correctness
@@ -81,6 +82,8 @@ skills/
 5. Reviews all changed files (correctness, security, style, performance, types)
 6. Posts inline comments via `gh api` with severity labels
 7. Adds `claude-reviewed` label to the PR
+8. **Offers to create GitHub issues** for CRITICAL/HIGH findings (so they don't get lost in PR comments)
+9. **Offers to run `/ca-debug`** for CRITICAL issues (full pipeline: Review → Issue → Debug)
 
 **Usage:** `/ca-pr-review <PR_NUMBER>` or `/ca-pr-review` (no args = local review against base branch, detected automatically with `main` or `develop` as fallback)
 
@@ -109,7 +112,7 @@ skills/
 
 ### 🐛 `/ca-debug`
 
-**Does:** Deep bug analysis — traces root cause through call chain and data flow
+**Does:** Deep bug analysis — traces root cause through call chain and data flow with advanced debugging techniques
 
 **Workflow:**
 
@@ -117,12 +120,19 @@ skills/
 2. Gathers project context (framework, structure, conventions)
 3. Traces the call chain backwards from the error point to the origin
 4. Analyzes data flow: where the value was created, mutated, and broke
-5. Checks test coverage and suggests a regression test
-6. If bug is already fixed: offers to close the GitHub issue or reply to PR comment with "✅ Fixed"
+5. Applies advanced techniques:
+   - **Git Bisect** — binary search for the exact breaking commit
+   - **5 Whys** — drill down to the true root cause
+   - **Hypothesis-Driven** — systematically test and refute hypotheses
+   - **Flaky Bug Detection** — identify timing issues, race conditions, non-deterministic code
+   - **Dependency Debugging** — check lock files, version mismatches, breaking changes
+   - **Logging Injection Points** — suggest strategic places to add debug logging
+6. Checks test coverage and suggests a regression test
+7. If bug is already fixed: offers to close the GitHub issue or reply to PR comment with "✅ Fixed"
 
 **Usage:** `/ca-debug "TypeError: Cannot read property 'id' of undefined at UserService.ts:45"` or `/ca-debug #123` (GitHub issue)
 
-**Output:** Root cause diagnosis with call chain, data flow, suggested fix, and regression test
+**Output:** Root cause diagnosis with call chain, data flow, 5 Whys analysis, suggested fix, and regression test
 
 ---
 

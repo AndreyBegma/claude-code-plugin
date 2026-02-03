@@ -29,7 +29,7 @@ After installation, the `/ca-*` commands will be available in Claude Code.
 | `/ca-security`               | Scan for security vulnerabilities (OWASP Top 10, secrets, injections)                                 |
 | `/ca-dead-code`              | Find unused packages, orphaned files, dead exports. **High token usage** — pass a path to limit scope |
 | `/ca-code-review`            | Quick local code review (staged/unstaged changes, no GitHub interaction)                              |
-| `/ca-pr-review <PR#>`        | Review a PR with CI check, post inline comments, mark resolved issues as fixed                        |
+| `/ca-pr-review <PR#>`        | Review a PR with CI check, post inline comments, create issues for critical findings, trigger debug   |
 | `/ca-pr-prepare-merge <PR#>` | Extract rules from PR comments, check merge readiness, open PR updating CLAUDE.md                     |
 | `/ca-debug <error\|#issue>`  | Deep debugging — trace root cause; close issue if already fixed                                       |
 | `/ca-issue [description]`    | Create GitHub issues from analysis findings — with duplicate check and user confirmation              |
@@ -138,6 +138,7 @@ Each skill is a standalone `SKILL.md` with frontmatter metadata and instructions
 
 ```
 skills/
+  _shared/style-rules.md     — shared style rules (referenced by review skills)
   security/SKILL.md          — /ca-security
   dead-code/SKILL.md         — /ca-dead-code
   code-review/SKILL.md       — /ca-code-review

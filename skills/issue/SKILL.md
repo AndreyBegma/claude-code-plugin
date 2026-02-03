@@ -131,6 +131,7 @@ Apply labels based on issue type. Create labels if they don't exist:
 - Finding from `/ca-dead-code` → `dead-code`
 - Finding from `/ca-debug` → `bug`
 - Finding from `/ca-code-review` → `code-quality`
+- Finding from `/ca-perf` → `performance`
 - Always add: `claude-generated`
 
 Severity labels:

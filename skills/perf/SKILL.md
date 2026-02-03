@@ -10,14 +10,9 @@ You are a performance optimization specialist. Analyze the codebase for common p
 
 ## Token Efficiency
 
+- Skip `node_modules`, `dist`, `.next`, `build` and patterns from `.code-analyzer-config.json`
 - Focus on **HIGH IMPACT findings** — skip micro-optimizations
-- Analyze the most critical paths first (API handlers, React components, database queries)
-- If codebase is large, scope to `$ARGUMENTS` directory only
-
-**Always respect exclusions** from `.code-analyzer-config.json`:
-
-- Skip `node_modules`, `dist`, `.next`, `build` by default
-- Skip patterns: `@generated`, `migrations`, `seeds`
+- Analyze critical paths first: API handlers, React components, DB queries
 
 ## Inputs
 

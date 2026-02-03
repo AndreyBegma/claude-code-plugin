@@ -85,22 +85,13 @@ Before reviewing code, check if CI has passed:
 
 ### Step 2: Read Project Rules
 
-Gather project-specific rules (**in priority order**):
+Read `CLAUDE.md` for project conventions (highest priority). Also scan `.claude/skills/**/*.md` for project-local patterns.
 
-1. **`CLAUDE.md`** — project-specific coding conventions, patterns, and rules. Highest priority.
-2. **Project-local skills** — scan for `.claude/skills/**/*.md` in the target project. These may define architectural patterns, naming conventions, or workflow rules that the code should follow. **Do not** read the analyzer plugin's own skill files — only the target project's skills.
-
-Read all found files. Extract any conventions, patterns, or constraints relevant to code review. **Priority**: `CLAUDE.md` > project skill conventions > built-in rules below > general best practices.
+**Priority**: `CLAUDE.md` > project skill conventions > general best practices.
 
 ### Step 2.5: Use Biome MCP (if available)
 
-If Biome MCP is available, use it to get structured lint diagnostics:
-
-1. Call Biome MCP `lint` on changed files
-2. Get structured errors with exact locations and rule IDs
-3. Include Biome violations in the review (respect project's `biome.json`)
-
-This is more accurate than manual style checking — Biome's rules take priority.
+If Biome MCP is available, call `lint` on changed files. Biome violations take priority over manual style checks.
 
 ### Step 2.6: Check Existing PR Comments
 
@@ -164,30 +155,9 @@ Analyze every changed file in the diff. Check for:
 - Braces on all control flow statements — never single-line if statements
 - No type assertions (as, non-null assertion) without justification
 - No any types without justification
-- Import ordering — follow Biome rules (see biome.json)
-- Avoid optionality/nullability unless necessary
-- Avoid empty strings as sentinel values
-- Avoid unnecessary aliases (password → pwd is forbidden)
-- Use camelCase for constants, not CAPITAL_CASE
-- Avoid one-letter variable names except loop indexes (i, j, k)
-- Respect ESLint, tsconfig, and Biome settings in the project
+- Import o
 
-#### React/NextJS
-
-- Never report "Missing React import" — not needed in modern React
-- Wrap callbacks in `useCallback`, computed objects in `useMemo`
-- Do not memoize simple values (strings, numbers, booleans)
-- Mark components with `React.FC`: `const MyComponent: React.FC = () => ...`
-- Use explicit strings in JSX: `<>{'text'}</>` not `<>text</>`
-- Export directly: `export const X = () => ...` not `const X = ...; export { X }`
-- Avoid extra `<div>`s — use fragments `<>...</>` when possible
-- Put loaders in parent components instead of passing `isLoading` props
-- Extract all components from page files to separate files
-
-#### NestJS
-
-- Never add exports/imports to modules unless necessary
-- Use typed EntityId (`UserId`, `VesselId`) instead of plain strings
+Apply rules from `../_shared/style-rules.md`. **CLAUDE.md rules take priority.**
 
 #### Performance
 
@@ -200,27 +170,11 @@ Analyze every changed file in the diff. Check for:
 - Unused imports or variables introduced by the change
 - Dead code introduced by the change
 
-Assign severity to each issue:
-
-- **CRITICAL** — security vulnerability, data loss, crash in production
-- **HIGH** — bug, logic error, missing validation on user input
-- **MEDIUM** — style violation, suboptimal pattern, missing error handling
-- **LOW** — nitpick, naming suggestion, minor improvement
-
-### Step 4: Confirm with User
-
-**Never post comments without user confirmation.** Show a numbered preview of all findings:
-
-```
-Found N issues in PR #$ARGUMENTS:
-
-1. [CRITICAL] SQL injection in UserService.ts:45
-2. [HIGH] Missing auth guard on admin.controller.ts:23
-3. [MEDIUM] Unused import in utils.ts:1
-4. [LOW] Naming: prefer camelCase in config.ts:12
+Assign severity per `../_shared/severity-levels.md` (CRITICAL / HIGH / MEDIUM / LOW). 2. [HIGH] Missing auth guard on admin.controller.ts:23 3. [MEDIUM] Unused import in utils.ts:1 4. [LOW] Naming: prefer camelCase in config.ts:12
 
 Post all 4 comments to GitHub? (yes / pick / edit / no)
-```
+
+````
 
 - **yes** — post all comments to GitHub
 - **pick** — go through each issue one by one, showing full comment body, asking yes/no
@@ -237,7 +191,7 @@ For each **confirmed** issue, post an inline comment on the PR.
 
 ```bash
 gh api repos/OWNER/REPO/pulls/PR_NUMBER/comments --method POST -f body="**[SEVERITY]** description" -f commit_id="COMMIT_SHA" -f path="file/path.ts" -F line=LINE_NUMBER -f side="RIGHT"
-```
+````
 
 **Example with real values:**
 
@@ -269,6 +223,57 @@ Run these commands **one at a time**:
    ```
 
 If the label command fails (e.g., due to project settings), note it in the output but do not treat it as an error.
+
+### Step 7: Offer to Create Issues
+
+After posting comments, if there are **CRITICAL** or **HIGH** severity issues, offer to create GitHub issues so they don't get lost in PR comments.
+
+1. Filter posted comments to only CRITICAL and HIGH severity
+2. If none found, skip this step
+3. Show the user:
+
+   ```
+   Would you like to create GitHub issues for critical findings?
+
+   1. [CRITICAL] SQL injection in UserService.ts:45
+   2. [HIGH] Missing auth guard on admin.controller.ts:23
+
+   Create issues? (yes / pick / no)
+   ```
+
+   - **yes** — create issues for all CRITICAL/HIGH findings
+   - **pick** — go through each one, asking yes/no
+   - **no** — skip issue creation
+
+4. For each confirmed issue, invoke `/ca-issue` with:
+   - Title: `[SEVERITY] Brief description`
+   - Body: Full details from the review comment + link to PR
+   - Labels: `bug` for CRITICAL, `bug` or `code-review` for HIGH
+   - Reference: `Found during PR review: #PR_NUMBER`
+
+5. After creating issues, show summary:
+
+   ```
+   Created 2 issues:
+   - #123: [CRITICAL] SQL injection in UserService.ts
+   - #124: [HIGH] Missing auth guard in admin.controller.ts
+   ```
+
+6. For CRITICAL issues, offer to start debugging immediately:
+
+   ```
+   Start deep analysis for critical issues?
+
+   - #123: [CRITICAL] SQL injection in UserService.ts
+
+   Run /ca-debug? (yes / pick / no)
+   ```
+
+   - **yes** — run `/ca-debug #ISSUE_NUMBER` for all CRITICAL issues
+   - **pick** — choose which issues to debug
+   - **no** — skip debugging
+
+   This creates a full workflow: Review → Issue → Debug
 
 ## Flow: No PR Number
 

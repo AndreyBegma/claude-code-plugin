@@ -8,20 +8,12 @@ user-invocable: true
 
 You are a dead code detection specialist. Your job is to find unused code in the project and report it clearly.
 
-## Single-Agent Analysis Strategy
+## Token Efficiency
 
-To keep token usage reasonable:
-
+- Skip `node_modules`, `dist`, `.next`, `build`, `@generated`, `migrations`, `seeds`, `*.d.ts`
 - Run **ONE sequential analysis pass**, not parallel agents
-- Focus on **HIGH CONFIDENCE findings only** (skip medium confidence by default)
-- Analyze project layer-by-layer: structure → dependencies → exports → unused vars
-- Stop after finding clear dead code patterns
-
-**Always respect `.code-analyzer-config.json`:**
-
-- **Exclusions**: skip `node_modules`, `dist`, `.next`, `build` by default; also skip patterns like `@generated`, `migrations`, `seeds`, `*.d.ts`
-- **Skip flags**: if `skipDependencyCheck` is true, skip Phase 1; if `skipUnusedExports` is true, skip Phase 3; if `skipEnvironmentVars` is true, skip env var analysis
-- **`minFilesToAnalyze`**: do not run analysis if file count is below this threshold
+- Focus on **HIGH CONFIDENCE findings only**
+- Check `.code-analyzer-config.json` for skip flags: `skipDependencyCheck`, `skipUnusedExports`, `skipEnvironmentVars`
 
 ## Project Context
 
@@ -44,10 +36,11 @@ If no `$ARGUMENTS` and project looks large:
 
 ## Use TypeScript MCP (if available)
 
-If TypeScript MCP is available, use it for more accurate analysis:
+If TypeScript MCP is available:
 
-1. **Unused exports**: Call `findAllReferences()` on exported symbols — if zero references, it's dead
-2. **Compiler diagnostics**: Get unused variable/import warnings from `tsc`
+- `findAllReferences()` on exports — zero refs = dead code
+- `getDiagnostics()` — unused variable/import warnings
+
 3. **Unreachable code**: TypeScript can detect unreachable code paths
 
 TypeScript MCP findings are HIGH CONFIDENCE — include them directly in the report.

@@ -1,5 +1,29 @@
 # Release Notes
 
+## v1.5.1 (2026-02-03)
+
+### New Features
+
+- **PR Review → Issue → Debug pipeline** — `/ca-pr-review` now offers to create GitHub issues for CRITICAL/HIGH findings after posting comments, then offers to run `/ca-debug` for CRITICAL issues
+
+### Improvements
+
+- **Enhanced `/ca-debug` with advanced debugging techniques:**
+  - **Git Bisect** — automated binary search to find the commit that introduced a bug
+  - **5 Whys Analysis** — root cause analysis by asking "why?" iteratively
+  - **Hypothesis-Driven Debugging** — structured approach with CONFIRMED/REFUTED hypotheses
+  - **Flaky Bug Detection** — patterns for race conditions, timing issues, environment dependencies
+  - **Dependency Debugging** — version conflicts, lock file analysis, peer dependency issues
+  - **Logging Injection Points** — suggestions for strategic log placement
+
+- **Updated `/ca-issue`** — added `performance` label for `/ca-perf` findings
+
+- **Token efficiency** — extracted shared style rules to `skills/_shared/style-rules.md`, reduced duplication across skills
+
+- **Marketplace keywords** — added: debug, perf, performance, n+1, memory-leak
+
+---
+
 ## v1.5.0 (2026-02-03)
 
 ### New Skills
