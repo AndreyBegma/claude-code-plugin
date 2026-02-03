@@ -1,17 +1,27 @@
 {
   "name": "code-sentinel",
   "owner": {
-    "name": "Andriy Behma"
+    "name": "Andriy Behma",
+    "email": "abegma137@gmail.com"
   },
   "metadata": {
     "description": "AI code guardian — catches security issues, dead code, and style violations. Reviews PRs and learns your team's conventions.",
-    "version": "1.5.1"
+    "version": "1.5.2"
   },
   "plugins": [
     {
       "name": "code-sentinel",
       "source": "./",
       "description": "Security scanning, dead code detection, PR review with GitHub comments, and automatic rule extraction",
+      "version": "1.5.2",
+      "author": {
+        "name": "Andriy Behma",
+        "email": "abegma137@gmail.com"
+      },
+      "homepage": "https://github.com/AndreyBegma",
+      "repository": "https://github.com/AndreyBegma/claude-code-plugin",
+      "license": "MIT",
+      "category": "code-quality",
       "keywords": [
         "code-review",
         "security",
@@ -27,8 +37,18 @@
         "n+1",
         "memory-leak"
       ],
-      "category": "code-quality",
-      "version": "1.5.1"
+      "tags": [
+        "linter",
+        "static-analysis",
+        "vulnerability-scanner",
+        "github-issues",
+        "ci-check",
+        "refactoring",
+        "bundle-size",
+        "react",
+        "nestjs",
+        "typescript"
+      ]
     }
   ]
 }

@@ -117,14 +117,26 @@ Before reviewing, check if there are existing review comments from previous revi
    Previously reported issues now fixed:
    - Comment by @reviewer on user.service.ts:45 — "Missing null check" → FIXED
 
-   Reply to mark as resolved? (yes / edit / no)
+   Reply to mark as resolved? (yes / <numbers> / no)
    ```
 
    - **yes** — reply to all resolved comments
-   - **edit** — let user modify the list before replying
+   - **\<numbers\>** — reply only to the specified comments (e.g. `1 3` or `1, 3`)
    - **no** — skip replying to resolved comments
 
-5. If user confirms, reply to each resolved comment:
+5. For each confirmed resolved comment, show the reply and ask before posting:
+
+   ```
+   Reply to comment by @reviewer on user.service.ts:45:
+   "✅ Fixed"
+
+   Send? (send / edit)
+   ```
+
+   - **send** — post the reply as-is
+   - **edit** — let user modify the reply before posting
+
+   Then post:
    ```bash
    gh api repos/OWNER/REPO/pulls/comments/COMMENT_ID/replies --method POST -f body="✅ Fixed"
    ```
@@ -172,20 +184,30 @@ Apply rules from `../_shared/style-rules.md`. **CLAUDE.md rules take priority.**
 
 Assign severity per `../_shared/severity-levels.md` (CRITICAL / HIGH / MEDIUM / LOW). 2. [HIGH] Missing auth guard on admin.controller.ts:23 3. [MEDIUM] Unused import in utils.ts:1 4. [LOW] Naming: prefer camelCase in config.ts:12
 
-Post all 4 comments to GitHub? (yes / pick / edit / no)
+Post all 4 comments to GitHub? (yes / <numbers> / no)
 
 ````
 
 - **yes** — post all comments to GitHub
-- **pick** — go through each issue one by one, showing full comment body, asking yes/no
-- **edit** — let user modify the list of issues before posting
+- **\<numbers\>** — post only the specified comments (e.g. `1 3` or `1, 3`)
 - **no** — output the review locally only, do not post any comments
 
 Wait for the user's response before proceeding. If the user picks `no`, skip Step 5 (Post) and Step 6 (Label) — go directly to the Output section with all issues listed as "local only".
 
 ### Step 5: Post Comments on GitHub
 
-For each **confirmed** issue, post an inline comment on the PR.
+For each **confirmed** issue, show the full comment body and ask before posting:
+
+```
+Comment for user.service.ts:45:
+
+**[HIGH]** Missing null check — `user` can be undefined when...
+
+Send? (send / edit)
+```
+
+- **send** — post the comment as-is
+- **edit** — let user modify the comment body before posting
 
 **Command template** (substitute OWNER, REPO, COMMIT_SHA, and issue details):
 
@@ -226,51 +248,55 @@ If the label command fails (e.g., due to project settings), note it in the outpu
 
 ### Step 7: Offer to Create Issues
 
-After posting comments, if there are **CRITICAL** or **HIGH** severity issues, offer to create GitHub issues so they don't get lost in PR comments.
+After posting comments, **always** offer to create GitHub issues for all findings (any severity) so they don't get lost in PR comments.
 
-1. Filter posted comments to only CRITICAL and HIGH severity
-2. If none found, skip this step
-3. Show the user:
+1. If no issues were found at all, skip this step
+2. Show the user **all** findings from the review:
 
    ```
-   Would you like to create GitHub issues for critical findings?
+   Create GitHub issues for review findings?
 
    1. [CRITICAL] SQL injection in UserService.ts:45
    2. [HIGH] Missing auth guard on admin.controller.ts:23
+   3. [MEDIUM] No allowedUsers check on unmarked-threads command
+   4. [LOW] Fire-and-forget async without await
 
-   Create issues? (yes / pick / no)
+   Create issues? (yes / <numbers> / no)
    ```
 
-   - **yes** — create issues for all CRITICAL/HIGH findings
-   - **pick** — go through each one, asking yes/no
-   - **no** — skip issue creation
+   - **yes** — create issues for every finding
+   - **\<numbers\>** — create issues only for the specified findings (e.g. `1 3` or `1, 3`)
+   - **no** — skip issue creation entirely
 
-4. For each confirmed issue, invoke `/ca-issue` with:
+3. For each confirmed issue, invoke `/ca-issue` with:
    - Title: `[SEVERITY] Brief description`
    - Body: Full details from the review comment + link to PR
-   - Labels: `bug` for CRITICAL, `bug` or `code-review` for HIGH
+   - Labels: `bug` for CRITICAL, `bug` or `code-review` for HIGH, `code-quality` for MEDIUM/LOW
    - Reference: `Found during PR review: #PR_NUMBER`
 
-5. After creating issues, show summary:
+4. After creating issues, show summary:
 
    ```
    Created 2 issues:
    - #123: [CRITICAL] SQL injection in UserService.ts
    - #124: [HIGH] Missing auth guard in admin.controller.ts
+
+   Skipped:
+   - [LOW] Fire-and-forget async (user declined)
    ```
 
-6. For CRITICAL issues, offer to start debugging immediately:
+5. For CRITICAL issues, offer to start debugging immediately:
 
    ```
    Start deep analysis for critical issues?
 
    - #123: [CRITICAL] SQL injection in UserService.ts
 
-   Run /ca-debug? (yes / pick / no)
+   Run /ca-debug? (yes / <numbers> / no)
    ```
 
    - **yes** — run `/ca-debug #ISSUE_NUMBER` for all CRITICAL issues
-   - **pick** — choose which issues to debug
+   - **\<numbers\>** — run `/ca-debug` only for the specified issues (e.g. `1 3` or `1, 3`)
    - **no** — skip debugging
 
    This creates a full workflow: Review → Issue → Debug

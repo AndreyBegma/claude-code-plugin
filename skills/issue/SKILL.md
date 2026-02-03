@@ -68,19 +68,35 @@ Found N issues to create:
 3. [HIGH] Hardcoded JWT secret in config.ts:12
    → Duplicate check: no existing issues found
 
-Create issues 1, 3? (yes / pick / edit / no)
+Create issues? (yes / <numbers> / no)
 ```
 
 **Wait for user response:**
 
 - **yes** — create all non-duplicate issues
-- **pick** — go through each issue one by one, showing full body, asking yes/no
-- **edit** — let user modify the list of issues before creating
+- **\<numbers\>** — create only the specified issues (e.g. `1 3` or `1, 3`)
 - **no** — stop, create nothing
 
 ## Step 4: Create Issues
 
-For each confirmed issue, run:
+For each confirmed issue, show the full issue body and ask before creating:
+
+```
+Issue preview:
+
+Title: [CRITICAL] SQL injection via string interpolation — UserService.ts:45
+Labels: bug, security, priority: critical
+
+## Description
+[full body here]
+
+Send? (send / edit)
+```
+
+- **send** — create the issue as-is
+- **edit** — let user modify the title or body before creating
+
+Then run:
 
 ```bash
 gh issue create --title "<title>" --body "<body>" --label "<labels>"

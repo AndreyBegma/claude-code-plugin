@@ -82,7 +82,7 @@ skills/
 5. Reviews all changed files (correctness, security, style, performance, types)
 6. Posts inline comments via `gh api` with severity labels
 7. Adds `claude-reviewed` label to the PR
-8. **Offers to create GitHub issues** for CRITICAL/HIGH findings (so they don't get lost in PR comments)
+8. **Offers to create GitHub issues** for all findings (so they don't get lost in PR comments)
 9. **Offers to run `/ca-debug`** for CRITICAL issues (full pipeline: Review → Issue → Debug)
 
 **Usage:** `/ca-pr-review <PR_NUMBER>` or `/ca-pr-review` (no args = local review against base branch, detected automatically with `main` or `develop` as fallback)
@@ -144,7 +144,7 @@ skills/
 
 1. Collects findings from previous analysis (or from description/file)
 2. Checks for duplicates via `gh issue list --search`
-3. Shows a preview of all issues and asks for confirmation (yes / pick / edit / no)
+3. Shows a preview of all issues and asks for confirmation (yes / \<numbers\> / no)
 4. Creates confirmed issues with labels and code context
 
 **Usage:** `/ca-issue` (after analysis) or `/ca-issue "bug description"` or `/ca-issue src/file.ts`

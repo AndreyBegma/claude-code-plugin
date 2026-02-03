@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.5.2 (2026-02-03)
+
+### Improvements
+
+- **PR Review issue creation for all severities** — `/ca-pr-review` now offers to create GitHub issues for **all** findings (any severity), not just CRITICAL/HIGH
+- **Unified confirmation UX** — replaced `yes / pick / edit / no` with `yes / <numbers> / no` across all skills. User types specific numbers (e.g. `1 3` or `1, 3`) to select individual items instead of going through them one by one
+- **Send/edit step before posting** — all skills now show the full body (comment, issue, PR, reply) and ask `send / edit` before each submission to GitHub
+
+---
+
 ## v1.5.1 (2026-02-03)
 
 ### New Features

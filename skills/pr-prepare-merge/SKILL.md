@@ -141,12 +141,11 @@ Extracted N rules from PR #$ARGUMENTS:
 
 Skipped: 5 comments (not generalizable / duplicates / bot)
 
-Add all 3 rules to CLAUDE.md and create PR? (yes / pick / edit / no)
+Add all 3 rules to CLAUDE.md and create PR? (yes / <numbers> / no)
 ```
 
 - **yes** — include all rules, create the PR
-- **pick** — go through each rule one by one, asking yes/no
-- **edit** — let user modify the list of rules before proceeding
+- **\<numbers\>** — include only the specified rules (e.g. `1 3` or `1, 3`)
 - **no** — stop, do not create a branch or PR
 
 Wait for the user's response before proceeding. If the user picks `no`, skip to Step 7 (Output) and report that no PR was created.
@@ -237,7 +236,24 @@ Run these commands **one at a time**:
 
 **Important:** Do NOT add `Co-Authored-By`, `Signed-off-by`, or any AI/Claude attribution to commits.
 
-6. Create the PR with `gh pr create`.
+6. Before creating the PR, show the full PR body and ask:
+
+   ```
+   PR preview:
+
+   Title: Update CLAUDE.md with rules extracted from PR #18
+   Base: main
+
+   ## Summary
+   [full body here]
+
+   Send? (send / edit)
+   ```
+
+   - **send** — create the PR as-is
+   - **edit** — let user modify the title or body before creating
+
+   Then create the PR with `gh pr create`.
 
 7. Add label (run separately):
    ```bash
