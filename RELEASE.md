@@ -1,5 +1,19 @@
 # Release Notes
 
+## v1.6.1 (2026-02-04)
+
+### Improvements
+
+- **UX Review: Browser MCP required** — `/ca-ux-review` now requires browser MCP (Puppeteer/Playwright) instead of optional fallback. Prompts to install if missing, cancels if declined — UX review without visual inspection is incomplete
+- **UX Review: Enhanced capture** — screenshots at 3 viewports (1440px, 768px, 375px), keyboard navigation testing, interactive state checks (hover, focus, active, disabled)
+- **UX Review: Accessibility audit** — full WCAG 2.1 AA checklist as dedicated step: keyboard navigation, screen readers (aria, labels, alt), visual (contrast 4.5:1, touch targets 44px), motion (prefers-reduced-motion). Findings with CRITICAL/HIGH/MEDIUM/LOW severity
+- **UX Review: Loading & transition states** — dedicated step evaluating all async states (initial load, data fetching, form submit, navigation, empty/error/partial failure). Checks for Suspense boundaries, skeleton components, error boundaries in code
+- **UX Review: Universal app types** — 8 app types instead of 4: added Landing/Marketing, Documentation/Content, Marketplace, Developer Tool. Patterns tagged with applicable app types
+- **UX Review: New patterns** — added Skeleton Loading (#7), Micro-interactions (#11), Trust & Conversion Signals (#12). New Common Problem Areas: Loading & Async, Accessibility
+- **UX Review: i18n awareness** — checks for i18n setup and layout breakage with longer translations
+
+---
+
 ## v1.6.0 (2026-02-04)
 
 ### New Skills

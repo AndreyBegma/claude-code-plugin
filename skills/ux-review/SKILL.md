@@ -36,51 +36,93 @@ Before analysis, understand the project:
 5. Look for existing components in `src/components` or similar
 6. Check for i18n setup (`next-intl`, `react-i18next`, `i18n/` folder) — if present, include i18n checks
 
-## Step 2: Capture Current State
+## Step 2: Ensure Browser MCP Available
+
+**Browser automation is REQUIRED for this skill.** UX review without visual inspection is incomplete.
+
+### Check for Browser MCP
+
+Try to use one of: `mcp__puppeteer__*`, `mcp__playwright__*`, `mcp__browserbase__*`
+
+If **no browser MCP is available**, stop and ask user to install:
+
+```
+⚠️ Browser automation required for UX review.
+
+This skill needs to open pages in a browser to:
+- Take screenshots at different viewport sizes
+- Test keyboard navigation
+- Measure actual interactions
+- Verify visual states (hover, focus, loading)
+
+Install browser MCP to continue:
+```
+
+Use `AskUserQuestion`:
+
+- **question**: "Install Puppeteer MCP to enable browser automation?"
+- **options**:
+
+| Option                    | Description                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude` |
+| **Cancel**                | Stop UX review — cannot proceed without browser                               |
+
+If user picks **Cancel**, output: "UX review cancelled. Browser automation is required for visual analysis." and stop.
+
+After installation, verify MCP is working by navigating to a test URL.
+
+## Step 3: Capture Current State
 
 For each page/flow analyzed:
 
-1. **Open in browser** (use Puppeteer/Playwright MCP if available). If no browser MCP is available, offer to install using `AskUserQuestion` (Binary Choice): **Install (Recommended)** — `bunx @anthropic/mcp add puppeteer` / **Skip** — analyze from code only
-2. **Screenshot current UI** (if browser MCP available) or **read component code** to understand the UI
+1. **Open URL in browser** — navigate to the target page
+2. **Screenshot at multiple viewports**:
+   - Desktop: 1440×900
+   - Tablet: 768×1024
+   - Mobile: 375×812
 3. **Map user journey** — count clicks to complete task
-4. **Check viewport sizes** — if browser MCP available, capture at 1440px, 768px, 375px
-5. **Read component code** — understand constraints, state management, loading states
+4. **Test keyboard navigation** — Tab through page, check focus order
+5. **Check interactive states** — hover, focus, active, disabled
+6. **Read component code** — understand constraints, state management, loading states
 
 ```
 Current State Analysis:
-- Screenshot: [capture or "code-only analysis"]
+- Screenshots: [desktop], [tablet], [mobile]
 - Task: [what user is trying to do]
 - Current steps: [numbered list of clicks/actions]
 - Total interactions: X clicks, ~Y seconds
+- Keyboard navigable: Yes/No (issues: ...)
 - Pain points: [list frustrations]
 ```
 
-## Step 3: Identify Friction Categories
+## Step 4: Identify Friction Categories
 
 Evaluate against these friction types:
 
-| Friction Type          | Question                                | Example                                    |
-| ---------------------- | --------------------------------------- | ------------------------------------------ |
-| **Step bloat**         | Can this be done in fewer clicks?       | 5 clicks to create item → should be 2      |
-| **Context switching**  | Does user need to leave this page?      | Navigating away to look up data            |
-| **Cognitive load**     | Is there too much to process?           | 20 fields visible at once                  |
-| **Discovery**          | Is the action easy to find?             | Hidden in dropdown menu                    |
-| **Feedback gap**       | Does user know what happened?           | No confirmation after save                 |
-| **Error recovery**     | Can user easily fix mistakes?           | Must re-enter entire form                  |
-| **Keyboard hostility** | Must user reach for mouse?              | Can't tab through table rows               |
-| **Mobile unfriendly**  | Does it work on small screens?          | Horizontal scroll required                 |
-| **Slow feedback**      | Does UI feel sluggish?                  | Full page reload on every action           |
+| Friction Type          | Question                                | Example                                     |
+| ---------------------- | --------------------------------------- | ------------------------------------------- |
+| **Step bloat**         | Can this be done in fewer clicks?       | 5 clicks to create item → should be 2       |
+| **Context switching**  | Does user need to leave this page?      | Navigating away to look up data             |
+| **Cognitive load**     | Is there too much to process?           | 20 fields visible at once                   |
+| **Discovery**          | Is the action easy to find?             | Hidden in dropdown menu                     |
+| **Feedback gap**       | Does user know what happened?           | No confirmation after save                  |
+| **Error recovery**     | Can user easily fix mistakes?           | Must re-enter entire form                   |
+| **Keyboard hostility** | Must user reach for mouse?              | Can't tab through table rows                |
+| **Mobile unfriendly**  | Does it work on small screens?          | Horizontal scroll required                  |
+| **Slow feedback**      | Does UI feel sluggish?                  | Full page reload on every action            |
 | **Loading UX**         | What does user see while waiting?       | Blank screen or spinner instead of skeleton |
-| **Inconsistency**      | Does it break established patterns?     | Different button styles on same page       |
-| **Accessibility**      | Can everyone use it?                    | No focus indicators, missing labels        |
-| **Transition gaps**    | Are state changes abrupt?              | Content pops in without animation           |
-| **i18n readiness**     | Will it break with longer translations? | Fixed-width buttons clip translated text   |
+| **Inconsistency**      | Does it break established patterns?     | Different button styles on same page        |
+| **Accessibility**      | Can everyone use it?                    | No focus indicators, missing labels         |
+| **Transition gaps**    | Are state changes abrupt?               | Content pops in without animation           |
+| **i18n readiness**     | Will it break with longer translations? | Fixed-width buttons clip translated text    |
 
-## Step 4: Accessibility Audit
+## Step 5: Accessibility Audit
 
 Check against WCAG 2.1 AA (adapt depth to app type):
 
 ### Keyboard Navigation
+
 - All interactive elements reachable via Tab
 - Logical tab order (follows visual layout)
 - Focus indicators visible (not just `outline: none`)
@@ -89,6 +131,7 @@ Check against WCAG 2.1 AA (adapt depth to app type):
 - Escape closes modals/dropdowns
 
 ### Screen Readers
+
 - Images have meaningful `alt` text (not "image" or empty on meaningful images)
 - Form inputs have associated `<label>` or `aria-label`
 - Dynamic content uses `aria-live` regions
@@ -97,44 +140,48 @@ Check against WCAG 2.1 AA (adapt depth to app type):
 - Icons have `aria-hidden="true"` or descriptive label
 
 ### Visual
+
 - Color contrast meets 4.5:1 for text, 3:1 for large text
 - Information not conveyed by color alone (error states need icons/text too)
 - Text resizable to 200% without layout breaking
 - Touch targets minimum 44x44px on mobile
 
 ### Motion
+
 - Animations respect `prefers-reduced-motion`
 - No auto-playing video/audio without controls
 - No content that flashes more than 3 times per second
 
 Output accessibility findings with severity:
+
 - **CRITICAL**: Blocks usage entirely (can't submit form, can't navigate)
 - **HIGH**: Major barrier (no focus management in modal, missing labels)
 - **MEDIUM**: Degraded experience (poor contrast, small touch targets)
 - **LOW**: Enhancement (missing skip link, suboptimal heading order)
 
-## Step 5: Loading & Transition States
+## Step 6: Loading & Transition States
 
 Evaluate how the app handles async operations:
 
-| State | Bad | Good |
-|-------|-----|------|
-| **Initial load** | Blank screen / full-page spinner | Skeleton screens matching layout |
-| **Data fetching** | Spinner replacing all content | Skeleton for loading parts, keep existing content |
-| **Form submit** | Button does nothing, then redirects | Button shows loading state, disable, then feedback |
-| **Navigation** | Full page reload, white flash | Route transition with progress indicator |
-| **Empty state** | Blank area or "No data" text | Helpful message + CTA to create first item |
-| **Error state** | Generic "Something went wrong" | Specific message + retry action + what to do |
-| **Partial failure** | Entire page fails | Failed section shows error, rest works |
-| **Optimistic update** | Wait for server before UI change | Update UI immediately, rollback on error |
+| State                 | Bad                                 | Good                                               |
+| --------------------- | ----------------------------------- | -------------------------------------------------- |
+| **Initial load**      | Blank screen / full-page spinner    | Skeleton screens matching layout                   |
+| **Data fetching**     | Spinner replacing all content       | Skeleton for loading parts, keep existing content  |
+| **Form submit**       | Button does nothing, then redirects | Button shows loading state, disable, then feedback |
+| **Navigation**        | Full page reload, white flash       | Route transition with progress indicator           |
+| **Empty state**       | Blank area or "No data" text        | Helpful message + CTA to create first item         |
+| **Error state**       | Generic "Something went wrong"      | Specific message + retry action + what to do       |
+| **Partial failure**   | Entire page fails                   | Failed section shows error, rest works             |
+| **Optimistic update** | Wait for server before UI change    | Update UI immediately, rollback on error           |
 
 Check in code:
+
 - Suspense boundaries / loading.tsx files (Next.js)
 - Loading/error/empty state handling in components
 - Skeleton components existence and usage
 - Error boundaries
 
-## Step 6: Propose Redesigns
+## Step 7: Propose Redesigns
 
 For each friction point, propose a specific redesign using this format:
 
@@ -167,24 +214,24 @@ For each friction point, propose a specific redesign using this format:
 
 **BEFORE:**
 ┌─────────────────────────────────────┐
-│ Items                      [Create] │
+│ Items [Create] │
 ├─────────────────────────────────────┤
-│ Name     │ Status   │ Created       │
+│ Name │ Status │ Created │
 │──────────│──────────│───────────────│
-│ Item A   │ Active   │ 2024-01-15    │
-│ Item B   │ Draft    │ 2024-01-14    │
+│ Item A │ Active │ 2024-01-15 │
+│ Item B │ Draft │ 2024-01-14 │
 └─────────────────────────────────────┘
 ↓ Click Create → Full page form
 
 **AFTER:**
 ┌─────────────────────────────────────┐
-│ Items                          [+]  │
+│ Items [+] │
 ├─────────────────────────────────────┤
-│ Name     │ Status   │ Created       │
+│ Name │ Status │ Created │
 │──────────│──────────│───────────────│
-│ Item A   │ Active   │ 2024-01-15    │
-│ Item B   │ Draft    │ 2024-01-14    │
-│ [____]   │ [Select] │ [Auto] [✓][×] │ ← Inline add
+│ Item A │ Active │ 2024-01-15 │
+│ Item B │ Draft │ 2024-01-14 │
+│ [____] │ [Select] │ [Auto] [✓][×] │ ← Inline add
 └─────────────────────────────────────┘
 
 ### Impact

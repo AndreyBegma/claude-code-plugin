@@ -1,6 +1,6 @@
 {
   "name": "code-sentinel",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "AI code guardian — catches security issues, dead code, and style violations. Reviews PRs and learns your team's conventions.",
   "skills": "./skills/"
 }

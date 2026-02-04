@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "AI code guardian — catches security issues, dead code, and style violations. Reviews PRs and learns your team's conventions.",
-    "version": "1.6.0"
+    "version": "1.6.1"
   },
   "plugins": [
     {
       "name": "code-sentinel",
       "source": "./",
       "description": "Security scanning, dead code detection, PR review with GitHub comments, and automatic rule extraction",
-      "version": "1.6.0",
+      "version": "1.6.1",
       "author": {
         "name": "Andriy Behma",
         "email": "abegma137@gmail.com"
