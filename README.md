@@ -140,14 +140,15 @@ All user confirmations use **interactive selectors** — no typing `yes` or `no`
 
 **Bulk selection (findings with severity):**
 
-| Option | What it does |
-|--------|-------------|
-| **All** | Process every item |
+| Option            | What it does           |
+| ----------------- | ---------------------- |
+| **All**           | Process every item     |
 | **Critical only** | Only CRITICAL severity |
-| **High+** | CRITICAL + HIGH |
-| **None** | Skip |
+| **High+**         | CRITICAL + HIGH        |
+| **None**          | Skip                   |
 
 In "Other" you can type:
+
 - `1 3` — only items #1 and #3
 - `!2 4` — all EXCEPT #2 and #4
 
@@ -193,11 +194,13 @@ README.md                    — this file
 
 For enhanced analysis accuracy, install these optional MCP servers:
 
-- **Biome MCP** — structured lint diagnostics for code review
-- **TypeScript MCP** — type-aware dead code detection and debugging
-- **Puppeteer MCP** — browser automation for UX review screenshots
+| MCP Server     | Install Command                                                                                     | Used By                                         |
+| -------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **Biome**      | `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-biome --client claude`      | `/ca-code-review`, `/ca-pr-review`, `/ca-debug` |
+| **TypeScript** | `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-typescript --client claude` | `/ca-dead-code`, `/ca-perf`, `/ca-debug`        |
+| **Puppeteer**  | `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude`                           | `/ca-ux-review`                                 |
 
-See [CLAUDE.md](CLAUDE.md) for installation instructions.
+Skills will offer to install missing MCPs when they would improve analysis quality.
 
 ## License
 

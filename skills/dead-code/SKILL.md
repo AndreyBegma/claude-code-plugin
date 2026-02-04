@@ -34,21 +34,35 @@ If no `$ARGUMENTS` and project looks large:
 - Then focus on the largest app by file count
 - Skip the rest unless requested
 
-## Use TypeScript MCP
+## Check TypeScript MCP
 
-If TypeScript MCP is available:
+Check if TypeScript MCP is available. TypeScript MCP significantly improves dead code detection accuracy.
+
+TypeScript MCP provides:
 
 - `findAllReferences()` on exports — zero refs = dead code
 - `getDiagnostics()` — unused variable/import warnings
-
-3. **Unreachable code**: TypeScript can detect unreachable code paths
+- **Unreachable code**: TypeScript can detect unreachable code paths
 
 TypeScript MCP findings are HIGH CONFIDENCE — include them directly in the report.
 
-If TypeScript MCP is **not available**, offer to install it using `AskUserQuestion` (Binary Choice):
+If TypeScript MCP is **not available**, ask user to install:
 
-- question: "TypeScript MCP is not available. It enables type-aware dead code detection via findAllReferences(). Install it?"
-- options: **Install (Recommended)** — `bunx @anthropic/mcp add typescript` / **Skip** — continue without it
+Use `AskUserQuestion`:
+
+- **question**: "TypeScript MCP enables type-aware dead code detection. Install it?"
+- **options**:
+
+| Option                    | Description                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-typescript --client claude` |
+| **Skip**                  | Continue without TypeScript MCP (reduced accuracy, grep-based analysis only)                            |
+
+If user picks **Skip**, output warning and continue:
+
+```
+⚠️ Continuing without TypeScript MCP. Dead code detection will rely on grep patterns only (lower confidence).
+```
 
 ## Analysis Phases (Sequential, Not Parallel)
 

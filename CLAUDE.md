@@ -250,20 +250,20 @@ For enhanced analysis, install these MCP servers:
 
 Runs Biome linter and returns structured diagnostics (no CLI parsing needed).
 
-**Benefits for `/ca-code-review` and `/ca-debug`:**
+**Benefits for `/ca-code-review`, `/ca-pr-review`, and `/ca-debug`:**
 
 - Get lint errors as structured JSON
 - Exact error locations with rule IDs
 - Auto-detect Biome config from project
 - (`/ca-debug`) Lint violations near the error point often correlate with the root cause
 
-**Install:** `bunx @anthropic/mcp add biome`
+**Install:** `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-biome --client claude`
 
 ### TypeScript MCP
 
 Provides TypeScript compiler diagnostics and type information.
 
-**Benefits for `/ca-dead-code` and `/ca-debug`:**
+**Benefits for `/ca-dead-code`, `/ca-perf`, and `/ca-debug`:**
 
 - Find unused exports via `findAllReferences()`
 - Get compiler errors and warnings
@@ -271,7 +271,7 @@ Provides TypeScript compiler diagnostics and type information.
 - Type-aware dead code detection
 - (`/ca-debug`) Trace call chains via `findAllReferences()`, check real types at error point via `getTypeAtPosition()`
 
-**Install:** `bunx @anthropic/mcp add typescript`
+**Install:** `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-typescript --client claude`
 
 ### Puppeteer MCP
 
@@ -284,7 +284,7 @@ Provides browser automation for capturing screenshots and interacting with UI.
 - Test responsive behavior on different viewports
 - Verify keyboard navigation support
 
-**Install:** `bunx @anthropic/mcp add puppeteer`
+**Install:** `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude`
 
 ### MCP Availability — Offer to Install
 
@@ -297,8 +297,8 @@ When a skill checks for an MCP server and it is **not available**, offer the use
 Options:
 | Option | Description |
 |--------|-------------|
-| **Install (Recommended)** | Run `bunx @anthropic/mcp add [name]` and continue |
-| **Skip** | Continue without it |
+| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install [package] --client claude` |
+| **Skip** | Continue without it (reduced accuracy) |
 
 After installation, restart the analysis to pick up the new MCP server.
 
@@ -327,10 +327,12 @@ Each skill is a standalone SKILL.md with frontmatter metadata and instructions f
 All confirmations use **interactive selectors** (`AskUserQuestion` tool), not text prompts. See `_shared/confirmation-flow.md` for full spec.
 
 **Bulk selection (findings with severity):**
+
 - Options: **All** / **Critical only** / **High+** / **None**
 - "Other" field accepts: numbers (`1 3`), inverted selection (`!2 4`), severity keywords (`critical`, `high+`)
 
 **Bulk selection (items without severity):**
+
 - Options: **All** / **None**
 - "Other" field accepts: numbers (`1 3`), inverted selection (`!2`)
 

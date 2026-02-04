@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.6.2 (2026-02-04)
+
+### Fixes
+
+- **Fixed MCP install commands** — corrected install command format from `bunx @anthropic/mcp add [name]` to `bunx @anthropic-ai/mcp-install@latest install [package] --client claude`
+- **Updated MCP documentation** — CLAUDE.md and README.md now show correct install commands with table format showing which skills use which MCPs
+- **MCP skill mapping updated** — Biome MCP now lists `/ca-pr-review`, TypeScript MCP now lists `/ca-perf`
+
+---
+
 ## v1.6.1 (2026-02-04)
 
 ### Improvements
