@@ -2,7 +2,10 @@
 
 All user confirmations MUST use the `AskUserQuestion` tool (interactive selector), NOT text prompts.
 
-**Important:** Always output the numbered list of items as **plain text before** calling `AskUserQuestion`. The selector options must be **short and concise** — never repeat or embed the full item list inside option descriptions. The user sees both the text output and the selector together.
+**Important rules:**
+
+1. Always output the numbered list of items as **plain text before** calling `AskUserQuestion`. The selector options must be **short and concise** — never repeat or embed the full item list inside option descriptions. The user sees both the text output and the selector together.
+2. **Never add extra options** beyond what is specified below. Do NOT add "Select specific", "Pick items", or similar options — users who want specific items will type numbers in the built-in "Other" field. Adding extra options causes conflicts where typing `1` is ambiguous (option #1 vs item #1).
 
 ## Bulk Selection (with severity)
 

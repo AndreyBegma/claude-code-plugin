@@ -144,17 +144,19 @@ Extracted N rules from PR #$ARGUMENTS:
 Skipped: 5 comments (not generalizable / duplicates / bot)
 ```
 
-Then use `AskUserQuestion` with a **short** question and **concise** option descriptions (do NOT repeat the rules list inside the options):
+Then use `AskUserQuestion` with a **short** question and **concise** option descriptions (do NOT repeat the rules list inside the options).
+
+**IMPORTANT:** Use exactly 2 options — do NOT add a third "Select specific" option. Users who want specific items will type numbers in the built-in "Other" field.
 
 - **question**: "Which rules should be included in CLAUDE.md?"
-- **options**:
+- **options** (exactly 2):
 
 | Option | Description |
 |--------|-------------|
 | **All (Recommended)** | Include all N rules |
 | **None** | Do not create a branch or PR |
 
-User can type numbers (`1 3`) or inverted (`!2`) in "Other".
+The built-in "Other" field accepts: numbers (`1 3`) to pick specific rules, or inverted (`!2`) to exclude specific rules.
 
 Wait for the user's response before proceeding. If the user picks `None`, skip to Step 7 (Output) and report that no PR was created.
 
