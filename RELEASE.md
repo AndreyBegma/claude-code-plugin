@@ -1,5 +1,27 @@
 # Release Notes
 
+## v1.7.0 (2026-02-04)
+
+### New Skills
+
+- **`/ca-seo-audit`** — SEO analysis from Google Search Console and GA4 CSV exports
+  - **Quick wins detection**: pages at position 4-10 (almost top 3), high impressions with low CTR, zero-click pages
+  - **Problem detection**: keyword cannibalization, mobile vs desktop gap, declining traffic
+  - **GA4 correlation**: bounce rate, engagement time, conversion rate by landing page
+  - **Code integration**: maps URLs to project files (Next.js, Astro, Remix, Nuxt, SvelteKit, React)
+  - **Auto-fix meta tags**: `--fix` flag proposes optimized title, description, Open Graph with diffs
+  - **Structured data suggestions**: Article, Product, FAQ, Breadcrumb schemas
+  - **SEO Health Score**: 0-100 based on position, CTR, mobile parity, cannibalization, rich results
+  - **CTR benchmarks**: compares actual CTR to expected by position (identifies underperformers)
+  - **Multi-language support**: parses both English and Russian GSC exports (UTF-8 and Windows-1251)
+  - **Branded/Non-branded split**: auto-detects brand name, shows separate metrics (avoids brand inflation)
+  - **Period comparison**: `--compare` flag to compare two periods and find gainers/losers
+  - **Technical SEO audit**: robots.txt, sitemap, canonical tags, hreflang validation
+  - **SERP analysis (Browser MCP)**: screenshots Google SERP, analyzes competitor titles/descriptions
+  - **Browser MCP prompt**: offers to install Puppeteer MCP for enhanced analysis
+
+---
+
 ## v1.6.2 (2026-02-04)
 
 ### Fixes

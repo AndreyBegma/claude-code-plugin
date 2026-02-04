@@ -19,6 +19,7 @@ skills/
   issue/SKILL.md             — /ca-issue — Create GitHub issues from analysis findings with user confirmation
   perf/SKILL.md              — /ca-perf — Performance analyzer: N+1 queries, re-renders, memory leaks, bundle size
   ux-review/SKILL.md         — /ca-ux-review — UX analysis: friction points, redesign proposals, before/after mockups
+  seo-audit/SKILL.md         — /ca-seo-audit — SEO analysis from GSC/GA4 exports, code fixes for meta tags
 ```
 
 ## Skills Overview
@@ -190,6 +191,54 @@ skills/
 **Output:** Friction score + redesign proposals with ASCII mockups + prioritized roadmap
 
 **Enhanced with:** Puppeteer/Playwright/Browserbase MCP for live screenshots and interaction recording
+
+---
+
+### 📊 `/ca-seo-audit`
+
+**Does:** Analyzes Google Search Console and GA4 exports, identifies SEO opportunities, and proposes code fixes for meta tags
+
+**Data Sources:**
+
+- **Google Search Console**: Queries, Pages, Devices, Countries, Search Appearance
+- **Google Analytics 4**: Landing Pages, Events, Pages and Screens
+
+**Analysis:**
+
+1. **Quick Wins**: Pages at position 4-10 (push to top 3), high impressions with low CTR, zero-click pages
+2. **Problems**: Keyword cannibalization, mobile vs desktop gap, declining traffic
+3. **GA4 Correlation**: Bounce rate, engagement time, conversions by organic landing page
+4. **SEO Health Score**: 0-100 based on position, CTR benchmarks, mobile parity, cannibalization, rich results
+5. **Branded/Non-branded Split**: Auto-detects brand, shows separate metrics to avoid inflation
+6. **Period Comparison**: Use `--compare` to see gainers and losers between periods
+7. **Technical SEO**: Robots.txt, sitemap, canonical tags, hreflang validation
+8. **SERP Analysis**: Screenshots Google SERP, analyzes competitor titles/descriptions (requires Browser MCP)
+
+**Code Integration:**
+
+- Maps URLs to project files (Next.js, Astro, Remix, Nuxt, SvelteKit)
+- Analyzes current meta tags, Open Graph, structured data
+- Proposes optimized title/description based on top queries and competitor analysis
+- Suggests JSON-LD schemas (Article, Product, FAQ, Breadcrumb)
+
+**Analysis Modes:**
+
+| Mode          | Command                                                | Capabilities                               |
+| ------------- | ------------------------------------------------------ | ------------------------------------------ |
+| **Local**     | `/ca-seo-audit ~/Downloads/gsc`                        | Full analysis + code fixes                 |
+| **Remote**    | `/ca-seo-audit ~/Downloads/gsc --url https://site.com` | Analysis + recommendations (no code fixes) |
+| **Data-only** | No project, no URL                                     | Metrics analysis only                      |
+
+**Usage:**
+
+- `/ca-seo-audit ~/Downloads/gsc-export` — analyze (local project)
+- `/ca-seo-audit ~/Downloads/gsc --url https://example.com` — analyze remote site
+- `/ca-seo-audit ~/Downloads/metrics --fix` — analyze + apply fixes (local only)
+- `/ca-seo-audit --compare ~/Downloads/jan ~/Downloads/feb` — compare periods
+
+**Output:** SEO Health Score + Quick Wins + Problems + Technical Issues + SERP Analysis + Code fixes
+
+**Enhanced with:** Puppeteer/Playwright MCP for SERP screenshots, competitor analysis, and remote site meta tag fetching
 
 ---
 
