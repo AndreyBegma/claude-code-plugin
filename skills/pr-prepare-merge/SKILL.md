@@ -125,7 +125,9 @@ For each generalizable comment:
 
 ## Step 5: Confirm with User
 
-**Never create a PR without user confirmation.** Show a numbered preview of all extracted rules, then use `AskUserQuestion` (Bulk Selection without severity — see `../_shared/confirmation-flow.md`):
+**Never create a PR without user confirmation.**
+
+First, output the numbered list of extracted rules as plain text (NOT inside AskUserQuestion):
 
 ```
 Extracted N rules from PR #$ARGUMENTS:
@@ -142,11 +144,15 @@ Extracted N rules from PR #$ARGUMENTS:
 Skipped: 5 comments (not generalizable / duplicates / bot)
 ```
 
-Options:
+Then use `AskUserQuestion` with a **short** question and **concise** option descriptions (do NOT repeat the rules list inside the options):
+
+- **question**: "Which rules should be included in CLAUDE.md?"
+- **options**:
+
 | Option | Description |
 |--------|-------------|
-| **All (Recommended)** | Include all rules, create the PR |
-| **None** | Stop, do not create a branch or PR |
+| **All (Recommended)** | Include all N rules |
+| **None** | Do not create a branch or PR |
 
 User can type numbers (`1 3`) or inverted (`!2`) in "Other".
 

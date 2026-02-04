@@ -2,6 +2,8 @@
 
 All user confirmations MUST use the `AskUserQuestion` tool (interactive selector), NOT text prompts.
 
+**Important:** Always output the numbered list of items as **plain text before** calling `AskUserQuestion`. The selector options must be **short and concise** — never repeat or embed the full item list inside option descriptions. The user sees both the text output and the selector together.
+
 ## Bulk Selection (with severity)
 
 When presenting a numbered list of findings that have severity levels (CRITICAL / HIGH / MEDIUM / LOW), use `AskUserQuestion` with these options:
