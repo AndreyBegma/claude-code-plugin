@@ -26,14 +26,29 @@ Read `CLAUDE.md` for project conventions (highest priority). Also scan `.claude/
 
 **Priority**: `CLAUDE.md` > project skill conventions > general best practices.
 
-## Step 1.5: Use Biome MCP
+## Step 1.5: Check Biome MCP
 
-If Biome MCP is available, call `lint` on changed files. Biome violations take priority over manual style checks.
+Check if Biome MCP is available. Biome provides structured lint diagnostics for more accurate review.
 
-If Biome MCP is **not available**, offer to install it using `AskUserQuestion` (Binary Choice):
+If Biome MCP is **not available**, ask user to install:
 
-- question: "Biome MCP is not available. It provides structured lint diagnostics for more accurate review. Install it?"
-- options: **Install (Recommended)** — `bunx @anthropic/mcp add biome` / **Skip** — continue without it
+Use `AskUserQuestion`:
+
+- **question**: "Biome MCP enhances code review with structured lint diagnostics. Install it?"
+- **options**:
+
+| Option                    | Description                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-biome --client claude` |
+| **Skip**                  | Continue without Biome (reduced lint accuracy)                                                     |
+
+If user picks **Skip**, output warning and continue:
+
+```
+⚠️ Continuing without Biome MCP. Lint analysis will be less accurate.
+```
+
+After installation, verify MCP is working by calling `biome_lint` on a test file.
 
 ## Step 2: Get Changes
 

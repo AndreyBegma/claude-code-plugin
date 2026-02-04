@@ -36,39 +36,42 @@ Before analysis, understand the project:
 5. Look for existing components in `src/components` or similar
 6. Check for i18n setup (`next-intl`, `react-i18next`, `i18n/` folder) — if present, include i18n checks
 
-## Step 2: Ensure Browser MCP Available
+## Step 2: Check Browser MCP
 
-**Browser automation is REQUIRED for this skill.** UX review without visual inspection is incomplete.
+Check if Browser MCP is available. Browser automation significantly improves UX review accuracy.
 
-### Check for Browser MCP
+### Why Browser MCP?
+
+Browser MCP enables:
+
+- Screenshots at different viewport sizes
+- Testing keyboard navigation
+- Measuring actual interactions
+- Verifying visual states (hover, focus, loading)
 
 Try to use one of: `mcp__puppeteer__*`, `mcp__playwright__*`, `mcp__browserbase__*`
 
-If **no browser MCP is available**, stop and ask user to install:
-
-```
-⚠️ Browser automation required for UX review.
-
-This skill needs to open pages in a browser to:
-- Take screenshots at different viewport sizes
-- Test keyboard navigation
-- Measure actual interactions
-- Verify visual states (hover, focus, loading)
-
-Install browser MCP to continue:
-```
+If **no browser MCP is available**, ask user to install:
 
 Use `AskUserQuestion`:
 
-- **question**: "Install Puppeteer MCP to enable browser automation?"
+- **question**: "Browser MCP enables visual UX analysis with screenshots and interaction testing. Install it?"
 - **options**:
 
 | Option                    | Description                                                                   |
 | ------------------------- | ----------------------------------------------------------------------------- |
 | **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude` |
-| **Cancel**                | Stop UX review — cannot proceed without browser                               |
+| **Skip**                  | Continue without browser (code-only analysis, no screenshots)                 |
 
-If user picks **Cancel**, output: "UX review cancelled. Browser automation is required for visual analysis." and stop.
+If user picks **Skip**, output warning and continue:
+
+```
+⚠️ Continuing without Browser MCP. UX review will be based on code analysis only:
+- No screenshots
+- No viewport testing
+- No keyboard navigation testing
+- No visual state verification
+```
 
 After installation, verify MCP is working by navigating to a test URL.
 

@@ -35,7 +35,25 @@ You are a performance optimization specialist. Analyze the codebase for common p
 
 3. Read `CLAUDE.md` for any performance-related conventions
 
-4. If TypeScript MCP is available, use it for accurate call chain analysis. If **not available**, offer to install using `AskUserQuestion` (Binary Choice): **Install (Recommended)** — `bunx @anthropic/mcp add typescript` / **Skip**
+4. **Check TypeScript MCP** — enhances call chain analysis accuracy.
+
+If TypeScript MCP is **not available**, ask user to install:
+
+Use `AskUserQuestion`:
+
+- **question**: "TypeScript MCP enhances performance analysis with accurate call chain tracking. Install it?"
+- **options**:
+
+| Option                    | Description                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-typescript --client claude` |
+| **Skip**                  | Continue without TypeScript MCP (reduced accuracy)                                                      |
+
+If user picks **Skip**, output warning and continue:
+
+```
+⚠️ Continuing without TypeScript MCP. Call chain analysis will be less accurate.
+```
 
 ## Step 2: Database & Query Analysis
 

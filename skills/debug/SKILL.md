@@ -59,21 +59,43 @@ If `$ARGUMENTS` is empty, ask the user what to debug.
 3. Read `CLAUDE.md` if present — project conventions may explain expected behavior
 4. Check `tsconfig.json` for strict mode, path aliases, compiler settings
 
-## Step 2.5: Use MCP Tools
+## Step 2.5: Check MCP Tools
 
-**TypeScript MCP** (prefer over grep):
+Check if TypeScript MCP and Biome MCP are available. These tools significantly improve debugging accuracy.
+
+**TypeScript MCP** (enhances type-aware analysis):
 
 - `getDiagnostics()` — compiler errors, type issues
 - `findAllReferences()` — exact callers
 - `getDefinition()` — jump to definitions
 - `getTypeAtPosition()` — check real types
 
-**Biome MCP**: Run `lint` on error file — violations often correlate with bugs.
+**Biome MCP** (enhances lint analysis):
 
-If either MCP is **not available**, offer to install using `AskUserQuestion` (Binary Choice):
+- Run `lint` on error file — violations often correlate with bugs
 
-- question: "[MCP Name] is not available. It enhances debugging with [benefit]. Install it?"
-- options: **Install (Recommended)** — `bunx @anthropic/mcp add [name]` / **Skip** — continue without it
+If **either MCP is not available**, ask user to install:
+
+Use `AskUserQuestion`:
+
+- **question**: "[MCP Name] enhances debugging with [benefit]. Install it?"
+- **options**:
+
+| Option                    | Description                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install [mcp-package] --client claude` |
+| **Skip**                  | Continue without [MCP Name] (reduced accuracy)                                    |
+
+MCP packages:
+
+- TypeScript: `@anthropic-ai/mcp-server-typescript`
+- Biome: `@anthropic-ai/mcp-server-biome`
+
+If user picks **Skip**, output warning and continue:
+
+```
+⚠️ Continuing without [MCP Name]. Analysis will be less accurate.
+```
 
 ## Step 3: Trace the Root Cause
 
