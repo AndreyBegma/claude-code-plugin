@@ -83,6 +83,70 @@ export const metadata: Metadata = {
 }
 ```
 
+### TouristTrip (tours, adventures, travel)
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "TouristTrip",
+  "name": "Trip Name",
+  "description": "Trip description",
+  "touristType": "Adventure Travel",
+  "itinerary": {
+    "@type": "ItemList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Day 1: Arrival" }
+    ]
+  },
+  "provider": {
+    "@type": "TourOperator",
+    "name": "Company Name",
+    "url": "https://example.com"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "5000",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  }
+}
+```
+
+### LocalBusiness (service companies, agencies)
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "Business Name",
+  "url": "https://example.com",
+  "telephone": "+1-555-000-0000",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "City",
+    "addressRegion": "State",
+    "addressCountry": "US"
+  }
+}
+```
+
+### HowTo (guides, tutorials, workout instructions)
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to Do Something",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "name": "Step 1",
+      "text": "Do this first"
+    }
+  ]
+}
+```
+
 ### Breadcrumb
 
 ```json

@@ -40,8 +40,8 @@ Use `AskUserQuestion`:
 
 | Option                    | Description                                                                                        |
 | ------------------------- | -------------------------------------------------------------------------------------------------- |
-| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-biome --client claude` |
-| **Skip**                  | Continue without Biome (reduced lint accuracy)                                                     |
+| **Skip (Recommended)**    | Continue without Biome — MCP package not yet available on npm                                      |
+| **Learn More**            | See [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017) for official MCP status |
 
 If user picks **Skip**, output warning and continue:
 

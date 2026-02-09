@@ -39,8 +39,8 @@ Use `AskUserQuestion`:
 
 | Option                    | Description                                                                   |
 | ------------------------- | ----------------------------------------------------------------------------- |
-| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude` |
-| **Skip**                  | Continue without browser (limited in remote mode — can't fetch meta tags)     |
+| **Install (Recommended)** | Run `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer` |
+| **Skip**                  | Continue without browser (limited in remote mode — can't fetch meta tags)       |
 
 If user picks **Skip**, output warning and continue:
 
@@ -79,14 +79,16 @@ Period: 2026-01-05 to 2026-02-04 | Clicks: 12,456 | CTR: 2.73%
 
 ## Step 4: Calculate SEO Health Score (0-100)
 
-| Factor                | Weight |
-| --------------------- | ------ |
-| Avg Position          | 25%    |
-| CTR vs benchmark      | 20%    |
-| Mobile/Desktop parity | 15%    |
-| Zero-click pages      | 15%    |
-| Cannibalization       | 15%    |
-| Rich results %        | 10%    |
+| Factor                | Weight | How to score                                                                             |
+| --------------------- | ------ | ---------------------------------------------------------------------------------------- |
+| Avg Position          | 25%    | 25 if avg < 5, 20 if < 8, 15 if < 12, 10 if < 20, 5 if < 30, 0 if 30+                  |
+| CTR vs benchmark      | 20%    | Per-page: compare actual CTR to `_shared/seo-references.md` benchmark for that position. Score = avg(actual/benchmark) × 20, capped at 20 |
+| Mobile/Desktop parity | 15%    | 15 if gap < 20%, 10 if < 50%, 5 if < 100%, 0 if 100%+. Gap = abs(mobile_CTR - desktop_CTR) / min(mobile_CTR, desktop_CTR) |
+| Zero-click pages      | 15%    | 15 if < 5% pages have 0 clicks, 10 if < 15%, 5 if < 30%, 0 if 30%+                      |
+| Cannibalization       | 15%    | 15 if no clusters, 10 if 1-2 clusters, 5 if 3-5, 0 if 6+                                |
+| Rich results %        | 10%    | 10 if structured data on 50%+ pages, 5 if on any page, 0 if none                        |
+
+**Always show the scoring breakdown** in the report — show each factor's score and why, not just the total.
 
 ## Step 5: Identify Quick Wins
 
@@ -94,17 +96,42 @@ Period: 2026-01-05 to 2026-02-04 | Clicks: 12,456 | CTR: 2.73%
 2. **High impressions, low CTR** — title/description not compelling
 3. **Zero-click pages** — impressions but no clicks
 
-For each: show page, query, current metrics, estimated gain, action.
+For each quick win, show:
+
+- Page URL, current title
+- Current metrics: clicks, impressions, CTR, avg position
+- **CTR gap**: compare actual CTR vs benchmark for that position (see `_shared/seo-references.md`)
+- **Estimated gain with formula**: `monthly_impressions × (benchmark_CTR - current_CTR)`. Example: "4,693 impressions × (3.5% benchmark at pos 8 − 0.47% actual) = +142 clicks/month"
+- Specific action (rewrite title, add structured data, etc.)
+
+Always show the math — never give estimated gains without the calculation.
 
 ## Step 6: Detect Problems
 
-1. **Cannibalization** — multiple pages for same query → consolidate
-2. **Mobile gap** — significant mobile vs desktop difference → check speed/UX
+1. **Cannibalization** — multiple pages for same query cluster → show all competing pages, which one should be canonical, and what to do with the rest (redirect, noindex, differentiate)
+2. **Mobile gap** — if mobile CTR differs from desktop by > 50%, flag it. Suggest checking: title truncation on mobile, page speed, mobile UX
 3. **Declining pages** — traffic drop (if `--compare`) → update content
+4. **HTTP/WWW/param duplicates** — look for the same page URL appearing in GSC with different schemes (http/https), www/non-www, or query params. Sum up the split clicks to show wasted potential
+5. **Missing meta tags** — if remote/local mode: check for missing or duplicate title tags, missing descriptions, descriptions over 160 chars, titles over 60 chars
+6. **Content-intent mismatch** — pages with high impressions but CTR far below benchmark for their position → the search intent may not match what the page offers
 
 ## Step 7: Cross-Reference GA4
 
-If GA4 data available: correlate GSC clicks with bounce rate, engagement time, conversions. Flag high-bounce pages with search traffic.
+If GA4 data available, perform deep correlation — not just listing tables:
+
+1. **Traffic-to-conversion mapping**: For each top GSC page, find GA4 metrics (sessions, engagement time, key events). Identify pages that get traffic but don't convert → recommend CTAs or internal links.
+2. **High-converting pages with low traffic**: Find GA4 pages with high conversion rates but few GSC clicks → these are SEO priority targets (improving their rankings has direct revenue impact).
+3. **Engagement quality**: Flag pages where GSC clicks are high but GA4 engagement time is very low (< 10s) → content quality or intent mismatch issue.
+4. **Conversion funnel analysis**: If GA4 events show a funnel (form_start → form_submit), calculate drop-off rate and recommend simplification if > 80% drop-off.
+5. **Revenue opportunity**: For high-converting pages, estimate the business value: "Improving this page from position 15 to position 8 could yield +X clicks/month × Y% conversion rate = Z additional leads/month".
+
+## Step 7.5: Internal Linking Analysis
+
+If local project is available, analyze internal link structure:
+
+1. **Orphan pages**: Find high-value pages (by GA4 conversions) that have few or no internal links pointing to them
+2. **Link from traffic to conversion**: Identify high-traffic low-conversion pages (e.g., blog posts) that could link to high-converting pages (e.g., product/destination pages). Recommend specific anchor text and placement.
+3. **Hub pages**: Check if the site has category/hub pages that link to related content. If not, recommend creating them for major topic clusters.
 
 ## Step 8: Technical SEO Audit
 
@@ -114,6 +141,8 @@ Check in project or via Browser MCP:
 - **sitemap** — exists? dynamic? pages missing?
 - **Canonical** — duplicates? missing tags?
 - **Hreflang** — if i18n detected, check cross-references
+- **Core Web Vitals** — if Browser MCP available, run Lighthouse. If not, recommend user check PageSpeed Insights and include a link: `https://pagespeed.web.dev/analysis?url={site_url}`
+- **HTTP/HTTPS/WWW variants** — check GSC data for multiple URL variants of the same page (http:// vs https://, www vs non-www). Flag if clicks are split across variants — recommend 301 redirects to canonical.
 
 ## Step 9: SERP Analysis (with Browser MCP)
 
@@ -148,27 +177,52 @@ If `--fix` in local mode → Ask: "Apply SEO fixes? (X files)"
 
 ## Step 12: Generate Report
 
+Structure the report in this exact order:
+
 ```markdown
 # SEO Audit Report
 
-**Site**: example.com | **Period**: 31 days | **Score**: 67/100
+**Site**: example.com | **Period**: Jan 5 – Feb 4, 2026 (31 days) | **Mode**: Local/Remote
 
-## Summary
+---
 
-- Quick Wins: 12 (+3,400 clicks/mo potential)
-- Problems: 8 | Technical Issues: 3 | Fixes: 15 files
+## Data Summary
+GSC: Queries (X), Pages (Y), Devices (Z), Countries (W)
+GA4: Landing Pages (X), Events (Y)
+Period: ... | Clicks: X | Impressions: Y | CTR: Z% | Avg Position: X
 
-## Traffic Split
+## Traffic Split (Device, Branded/Non-Branded, Top Countries)
 
-Branded: 67% | Non-branded: 33%
+## SEO Health Score: X/100
+Show each factor with score AND reasoning (not just the number).
 
-## Top Actions
+## Quick Wins (Estimated +X clicks/month)
+For each: page, metrics, CTR gap formula, estimated gain, action.
 
-1. Fix /pricing meta — +800 clicks
-2. Resolve cannibalization — 3 pages competing
-3. Mobile optimization — 38% gap
+## Problems Detected
+Severity labels: CRITICAL / HIGH / MEDIUM. For each: what, why, impact.
 
-## [Sections: Quick Wins, Problems, Technical, SERP, Fixes, Roadmap]
+## GA4 Cross-Reference
+- High-traffic low-conversion pages (add CTAs)
+- High-converting low-traffic pages (SEO priority)
+- Conversion funnel drop-off analysis
+
+## Internal Linking Opportunities (if local mode)
+- Link high-traffic pages → high-converting pages
+- Orphan high-value pages
+
+## Technical SEO Audit
+robots.txt, sitemap, canonical, OG tags, HTTP variants, Core Web Vitals link.
+
+## Top N Action Items (Priority Order)
+Table with: #, Action, Impact, Effort, Estimated Gain.
+
+## Recommended Meta Tag Fixes
+Per page: current → new title, current → new description, rationale.
+
+## Structured Data Recommendations
+Use templates from _shared/seo-references.md but customize with actual site data
+(real page titles, real company name, real URLs — not generic placeholders).
 ```
 
 ---

@@ -89,7 +89,7 @@ If Biome MCP is **not available**, output a warning and continue without it:
 
 ```
 ⚠️ Biome MCP not available. Lint analysis will be less accurate.
-   Install: bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-biome --client claude
+   Note: Biome MCP package is not yet available on npm. See https://github.com/biomejs/biome/discussions/6017
 ```
 
 ### Step 2.6: Check Existing PR Comments

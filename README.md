@@ -223,9 +223,9 @@ For enhanced analysis accuracy, install these optional MCP servers:
 
 | MCP Server     | Install Command                                                                                     | Used By                                         |
 | -------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| **Biome**      | `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-biome --client claude`      | `/ca-code-review`, `/ca-pr-review`, `/ca-debug` |
-| **TypeScript** | `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-typescript --client claude` | `/ca-dead-code`, `/ca-perf`, `/ca-debug`        |
-| **Puppeteer**  | `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude`                           | `/ca-ux-review`                                 |
+| **Puppeteer**  | `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer`    | `/ca-ux-review`, `/ca-seo-audit`                |
+| **Biome**      | Not yet available on npm — see [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017) | `/ca-code-review`, `/ca-pr-review`, `/ca-debug` |
+| **TypeScript** | Not yet available on npm — use VS Code `getDiagnostics` as fallback            | `/ca-dead-code`, `/ca-perf`, `/ca-debug`        |
 
 Skills will offer to install missing MCPs when they would improve analysis quality.
 

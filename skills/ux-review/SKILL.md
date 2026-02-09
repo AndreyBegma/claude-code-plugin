@@ -60,8 +60,8 @@ Use `AskUserQuestion`:
 
 | Option                    | Description                                                                   |
 | ------------------------- | ----------------------------------------------------------------------------- |
-| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude` |
-| **Skip**                  | Continue without browser (code-only analysis, no screenshots)                 |
+| **Install (Recommended)** | Run `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer` |
+| **Skip**                  | Continue without browser (code-only analysis, no screenshots)                   |
 
 If user picks **Skip**, output warning and continue:
 

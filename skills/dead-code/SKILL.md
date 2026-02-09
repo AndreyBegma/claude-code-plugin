@@ -56,8 +56,8 @@ Use `AskUserQuestion`:
 
 | Option                    | Description                                                                                             |
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-typescript --client claude` |
-| **Skip**                  | Continue without TypeScript MCP (reduced accuracy, grep-based analysis only)                            |
+| **Skip (Recommended)**    | Continue without TypeScript MCP — package not yet available on npm. Use VS Code `getDiagnostics` as fallback |
+| **Learn More**            | TypeScript MCP server is not yet published as an npm package                                                 |
 
 If user picks **Skip**, output warning and continue:
 

@@ -1,5 +1,31 @@
 # Release Notes
 
+## v1.8.2 (2026-02-09)
+
+### Fixes
+
+- **Fixed MCP install commands** — removed non-existent packages (`@anthropic-ai/mcp-install`, `@anthropic-ai/mcp-server-biome`, `@anthropic-ai/mcp-server-typescript`) that returned 404 from npm. Puppeteer MCP now uses the correct package `@modelcontextprotocol/server-puppeteer` with the proper `claude mcp add` command. Biome and TypeScript MCP marked as not yet available on npm with links to tracking issues.
+
+### Improvements
+
+- **SEO audit: estimated gains now require math** — Quick Wins must show the formula `impressions × (benchmark_CTR - actual_CTR)` instead of unexplained ranges
+- **SEO audit: Health Score with scoring rubric** — each factor now has concrete thresholds (e.g., "25 if avg pos < 5, 20 if < 8...") and the report must show per-factor breakdown with reasoning
+- **SEO audit: deep GA4 correlation** — expanded from basic table listing to 5 specific analyses: traffic-to-conversion mapping, high-converting low-traffic pages, engagement quality, funnel drop-off rate, revenue opportunity estimates
+- **SEO audit: internal linking analysis** (new step 7.5) — orphan page detection, high-traffic→high-converting link recommendations, hub page analysis
+- **SEO audit: expanded problem detection** — added HTTP/WWW/param duplicate detection, meta tag length validation, content-intent mismatch flagging
+- **SEO audit: Technical SEO expanded** — added Core Web Vitals check (with PageSpeed Insights link fallback) and HTTP/HTTPS/WWW variant detection from GSC data
+- **SEO audit: improved report structure** — defined exact section order with required content per section
+- **SEO references: 3 new structured data templates** — added TouristTrip (tours/adventures), LocalBusiness (service companies), HowTo (guides/tutorials)
+
+### Files Changed
+
+- `CLAUDE.md`, `README.md`, `RELEASE.md` — updated MCP install commands
+- `skills/seo-audit/SKILL.md` — enhanced steps 4, 5, 6, 7, 8, 12; added step 7.5
+- `skills/_shared/seo-references.md` — added TouristTrip, LocalBusiness, HowTo templates
+- 8 skill files — fixed MCP install references (code-review, dead-code, debug, pr-review, pr-review-manual, perf, ux-review, seo-audit)
+
+---
+
 ## v1.8.1 (2026-02-06)
 
 ### Improvements
@@ -85,7 +111,7 @@
 
 ### Fixes
 
-- **Fixed MCP install commands** — corrected install command format from `bunx @anthropic/mcp add [name]` to `bunx @anthropic-ai/mcp-install@latest install [package] --client claude`
+- **Fixed MCP install commands** — corrected install command format (later updated again in v1.8.2 to `claude mcp add` with real npm packages)
 - **Updated MCP documentation** — CLAUDE.md and README.md now show correct install commands with table format showing which skills use which MCPs
 - **MCP skill mapping updated** — Biome MCP now lists `/ca-pr-review`, TypeScript MCP now lists `/ca-perf`
 

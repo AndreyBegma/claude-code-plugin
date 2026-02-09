@@ -84,13 +84,13 @@ Use `AskUserQuestion`:
 
 | Option                    | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
-| **Install (Recommended)** | Run `bunx @anthropic-ai/mcp-install@latest install [mcp-package] --client claude` |
-| **Skip**                  | Continue without [MCP Name] (reduced accuracy)                                    |
+| **Skip (Recommended)**    | Continue without [MCP Name] — packages not yet available on npm                   |
+| **Learn More**            | See status of MCP packages below                                                  |
 
-MCP packages:
+MCP package status:
 
-- TypeScript: `@anthropic-ai/mcp-server-typescript`
-- Biome: `@anthropic-ai/mcp-server-biome`
+- TypeScript: not yet available on npm — use VS Code `getDiagnostics` as fallback
+- Biome: not yet available on npm — see [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017)
 
 If user picks **Skip**, output warning and continue:
 

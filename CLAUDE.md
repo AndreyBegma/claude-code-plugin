@@ -50,11 +50,11 @@ Reads `.code-analyzer-config.json` in the project root for exclusions and per-sk
 
 ## Recommended MCP Servers
 
-| MCP Server     | Install                                                                                             | Used By                       |
-| -------------- | --------------------------------------------------------------------------------------------------- | ----------------------------- |
-| **Biome**      | `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-biome --client claude`      | code-review, pr-review, debug |
-| **TypeScript** | `bunx @anthropic-ai/mcp-install@latest install @anthropic-ai/mcp-server-typescript --client claude` | dead-code, perf, debug        |
-| **Puppeteer**  | `bunx @anthropic-ai/mcp-install@latest install puppeteer --client claude`                           | ux-review, seo-audit          |
+| MCP Server     | Install                                                                        | Used By                       |
+| -------------- | ------------------------------------------------------------------------------ | ----------------------------- |
+| **Puppeteer**  | `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer`    | ux-review, seo-audit          |
+| **Biome**      | Not yet available on npm — see [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017) | code-review, pr-review, debug |
+| **TypeScript** | Not yet available on npm — use VS Code `getDiagnostics` as fallback            | dead-code, perf, debug        |
 
 Skills auto-detect missing MCPs and offer to install via `AskUserQuestion`. If skipped, analysis continues with reduced accuracy.
 
