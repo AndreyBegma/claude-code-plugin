@@ -37,7 +37,8 @@ After installation, the `/ca-*` commands will be available in Claude Code.
 | `/ca-issue [description]`           |        | Create GitHub issues from analysis findings — with duplicate check and user confirmation              |
 | `/ca-perf [path]`                   |        | Performance analysis: N+1 queries, React re-renders, memory leaks, bundle size                        |
 | `/ca-ux-review [url\|focus]`        |        | UX analysis: friction points, redesign proposals with before/after mockups                            |
-| `/ca-seo-audit <path>`              |        | SEO analysis from GSC/GA4 CSV exports — quick wins, problems, meta tag fixes with `--fix` flag        |
+| `/ca-seo-audit <path>`              |        | SEO analysis from GSC exports — quick wins, problems, meta tag fixes with `--fix` flag                |
+| `/ca-analytics [path]`              |        | Data-driven UX from GA4/GSC — user flows, funnels, behavioral anomalies, Browser MCP flow replay      |
 
 All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-in or other plugin commands.
 
@@ -124,6 +125,18 @@ All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-
 
 # SEO audit with automatic fixes
 /ca-seo-audit ~/Downloads/metrics --fix
+
+# Analytics from GA4 export (local project)
+/ca-analytics ~/Downloads/ga4-export
+
+# Analytics with GA4 + GSC data
+/ca-analytics ~/Downloads/ga4-export ~/Downloads/gsc-export
+
+# Analytics without local project (remote mode — replays flows on live site)
+/ca-analytics ~/Downloads/ga4-export --url https://example.com
+
+# Analytics: scan current directory for CSV files
+/ca-analytics
 ```
 
 ## Configuration
@@ -207,6 +220,7 @@ skills/
   perf/SKILL.md                         — /ca-perf
   ux-review/SKILL.md                    — /ca-ux-review
   seo-audit/SKILL.md                    — /ca-seo-audit
+  analytics/SKILL.md                    — /ca-analytics
 CLAUDE.md                              — internal project instructions
 README.md                              — this file
 ```
@@ -223,7 +237,7 @@ For enhanced analysis accuracy, install these optional MCP servers:
 
 | MCP Server     | Install Command                                                                                     | Used By                                         |
 | -------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| **Puppeteer**  | `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer`    | `/ca-ux-review`, `/ca-seo-audit`                |
+| **Puppeteer**  | `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer`    | `/ca-ux-review`, `/ca-seo-audit`, `/ca-analytics` |
 | **Biome**      | Not yet available on npm — see [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017) | `/ca-code-review`, `/ca-pr-review`, `/ca-debug` |
 | **TypeScript** | Not yet available on npm — use VS Code `getDiagnostics` as fallback            | `/ca-dead-code`, `/ca-perf`, `/ca-debug`        |
 

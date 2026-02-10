@@ -1,5 +1,34 @@
 # Release Notes
 
+## v1.9.0 (2026-02-10)
+
+### New Skills
+
+- **`/ca-analytics`** — Data-driven UX analysis from GA4/GSC exports
+  - **User Journey Map**: traces top navigation flows with completion rates and drop-off points
+  - **Event Analysis**: ghost button detection, conversion rates per event, engagement anomalies, event sequence gaps
+  - **Traffic × Behavior cross-reference**: high-traffic/low-engagement pages, high-converting/low-traffic SEO priorities, intent mismatch detection (requires GSC data)
+  - **Conversion Funnel Analysis**: auto-detects funnels from event chains, calculates drop-off rates per step, estimates revenue impact
+  - **Browser MCP Flow Replay**: replays top user funnels step-by-step through Browser MCP — navigates, clicks, screenshots at each stage. Focuses on drop-off points to find visual root causes (hidden CTAs, long forms, layout issues)
+  - **Multiple modes**: Local (GA4 + project), Remote (`--url` for sites without code access), Data-only (GA4 metrics only), all with optional GSC cross-reference
+  - **Data-only principle**: every finding must cite specific numbers and formulas — no opinions
+
+### Changes
+
+- **`/ca-seo-audit` simplified** — removed GA4 cross-reference (Step 7) and internal linking analysis (Step 7.5). SEO audit is now pure GSC/search-focused. If GA4 files are detected, suggests running `/ca-analytics` instead
+- **Steps renumbered** in seo-audit: Technical SEO is now Step 7, SERP Analysis Step 8, Generate Fixes Step 9, Apply Fixes Step 10, Generate Report Step 11
+
+### Files Changed
+
+- `skills/analytics/SKILL.md` — new skill (9 steps)
+- `skills/seo-audit/SKILL.md` — removed GA4 sections, renumbered steps, added `/ca-analytics` hint
+- `CLAUDE.md` — added analytics to structure, skills table, MCP table
+- `README.md` — added analytics to commands, usage examples, project structure, MCP table
+- `.claude-plugin/plugin.json` — version bump to 1.9.0
+- `.claude-plugin/marketplace.json` — version bump to 1.9.0, added keywords: analytics, user-flows, conversion-funnels
+
+---
+
 ## v1.8.2 (2026-02-09)
 
 ### Fixes

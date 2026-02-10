@@ -1,13 +1,13 @@
 ---
 name: ca-seo-audit
-description: SEO analysis from GSC/GA4 exports — finds quick wins, problems, and proposes code fixes for meta tags
+description: SEO analysis from GSC exports — finds quick wins, problems, and proposes code fixes for meta tags
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, Edit, MultiEdit, AskUserQuestion, mcp__puppeteer__*, mcp__playwright__*, mcp__browserbase__*
 ---
 
 # SEO Audit & Optimization
 
-Analyze Google Search Console and GA4 CSV exports, identify optimization opportunities, propose code fixes.
+Analyze Google Search Console CSV exports, identify optimization opportunities, propose code fixes.
 
 **Reference**: See `_shared/seo-references.md` for CTR benchmarks, meta tag patterns, structured data templates.
 
@@ -15,7 +15,7 @@ Analyze Google Search Console and GA4 CSV exports, identify optimization opportu
 
 `$ARGUMENTS`:
 
-- `/path/to/metrics` — folder with GSC/GA4 CSV exports
+- `/path/to/metrics` — folder with GSC CSV exports
 - `--url https://example.com` — remote mode (no local project)
 - `--compare /path/prev /path/curr` — compare two periods
 - `--fix` — apply fixes (local mode only)
@@ -61,9 +61,10 @@ Scan folder for CSV files. Auto-detect type by column names (supports localized 
 
 ```
 GSC: Queries (1,234), Pages (89), Devices (3), Countries (12)
-GA4: Landing Pages (45), Events (28)
 Period: 2026-01-05 to 2026-02-04 | Clicks: 12,456 | CTR: 2.73%
 ```
+
+> **Tip**: If GA4 CSV files are detected in the folder, suggest running `/ca-analytics` for behavioral analysis (funnels, conversions, user flows).
 
 **Branded split**: Auto-detect brand from domain/package.json. Split queries into branded/non-branded with separate metrics.
 
@@ -115,25 +116,7 @@ Always show the math — never give estimated gains without the calculation.
 5. **Missing meta tags** — if remote/local mode: check for missing or duplicate title tags, missing descriptions, descriptions over 160 chars, titles over 60 chars
 6. **Content-intent mismatch** — pages with high impressions but CTR far below benchmark for their position → the search intent may not match what the page offers
 
-## Step 7: Cross-Reference GA4
-
-If GA4 data available, perform deep correlation — not just listing tables:
-
-1. **Traffic-to-conversion mapping**: For each top GSC page, find GA4 metrics (sessions, engagement time, key events). Identify pages that get traffic but don't convert → recommend CTAs or internal links.
-2. **High-converting pages with low traffic**: Find GA4 pages with high conversion rates but few GSC clicks → these are SEO priority targets (improving their rankings has direct revenue impact).
-3. **Engagement quality**: Flag pages where GSC clicks are high but GA4 engagement time is very low (< 10s) → content quality or intent mismatch issue.
-4. **Conversion funnel analysis**: If GA4 events show a funnel (form_start → form_submit), calculate drop-off rate and recommend simplification if > 80% drop-off.
-5. **Revenue opportunity**: For high-converting pages, estimate the business value: "Improving this page from position 15 to position 8 could yield +X clicks/month × Y% conversion rate = Z additional leads/month".
-
-## Step 7.5: Internal Linking Analysis
-
-If local project is available, analyze internal link structure:
-
-1. **Orphan pages**: Find high-value pages (by GA4 conversions) that have few or no internal links pointing to them
-2. **Link from traffic to conversion**: Identify high-traffic low-conversion pages (e.g., blog posts) that could link to high-converting pages (e.g., product/destination pages). Recommend specific anchor text and placement.
-3. **Hub pages**: Check if the site has category/hub pages that link to related content. If not, recommend creating them for major topic clusters.
-
-## Step 8: Technical SEO Audit
+## Step 7: Technical SEO Audit
 
 Check in project or via Browser MCP:
 
@@ -144,7 +127,7 @@ Check in project or via Browser MCP:
 - **Core Web Vitals** — if Browser MCP available, run Lighthouse. If not, recommend user check PageSpeed Insights and include a link: `https://pagespeed.web.dev/analysis?url={site_url}`
 - **HTTP/HTTPS/WWW variants** — check GSC data for multiple URL variants of the same page (http:// vs https://, www vs non-www). Flag if clicks are split across variants — recommend 301 redirects to canonical.
 
-## Step 9: SERP Analysis (with Browser MCP)
+## Step 8: SERP Analysis (with Browser MCP)
 
 For top 5-10 queries:
 
@@ -153,7 +136,7 @@ For top 5-10 queries:
 3. Identify SERP features (snippets, PAA, videos)
 4. Extract competitor patterns (numbers, year, brackets, length)
 
-## Step 10: Generate Fixes
+## Step 9: Generate Fixes
 
 **Local**: Read file, show current meta, generate optimized version with rationale.
 
@@ -165,7 +148,7 @@ For each page:
 - Optimized meta (based on queries, CTR benchmarks, competitors)
 - Structured data suggestion if applicable
 
-## Step 11: Apply Fixes (--fix, local only)
+## Step 10: Apply Fixes (--fix, local only)
 
 If `--fix` in remote mode → warn and skip.
 
@@ -175,7 +158,7 @@ If `--fix` in local mode → Ask: "Apply SEO fixes? (X files)"
 - **Review each** — show diff, confirm per file
 - **None** — skip
 
-## Step 12: Generate Report
+## Step 11: Generate Report
 
 Structure the report in this exact order:
 
@@ -188,7 +171,6 @@ Structure the report in this exact order:
 
 ## Data Summary
 GSC: Queries (X), Pages (Y), Devices (Z), Countries (W)
-GA4: Landing Pages (X), Events (Y)
 Period: ... | Clicks: X | Impressions: Y | CTR: Z% | Avg Position: X
 
 ## Traffic Split (Device, Branded/Non-Branded, Top Countries)
@@ -201,15 +183,6 @@ For each: page, metrics, CTR gap formula, estimated gain, action.
 
 ## Problems Detected
 Severity labels: CRITICAL / HIGH / MEDIUM. For each: what, why, impact.
-
-## GA4 Cross-Reference
-- High-traffic low-conversion pages (add CTAs)
-- High-converting low-traffic pages (SEO priority)
-- Conversion funnel drop-off analysis
-
-## Internal Linking Opportunities (if local mode)
-- Link high-traffic pages → high-converting pages
-- Orphan high-value pages
 
 ## Technical SEO Audit
 robots.txt, sitemap, canonical, OG tags, HTTP variants, Core Web Vitals link.

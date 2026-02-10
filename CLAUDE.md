@@ -23,6 +23,7 @@ skills/
   perf/SKILL.md                         — /ca-perf
   ux-review/SKILL.md                    — /ca-ux-review
   seo-audit/SKILL.md                    — /ca-seo-audit
+  analytics/SKILL.md                    — /ca-analytics
 ```
 
 ## Skills
@@ -40,7 +41,8 @@ skills/
 | `/ca-issue [description]`                        | Create GitHub issues from analysis findings — with duplicate check and user confirmation                                      |
 | `/ca-perf [path\|category]`                      | Performance analyzer — N+1 queries, re-renders, memory leaks, bundle size                                                     |
 | `/ca-ux-review [url\|focus]`                     | UX analysis — friction points, redesign proposals with before/after mockups                                                   |
-| `/ca-seo-audit <path> [--fix\|--url\|--compare]` | SEO analysis from GSC/GA4 exports — quick wins, problems, meta tag fixes                                                      |
+| `/ca-seo-audit <path> [--fix\|--url\|--compare]` | SEO analysis from GSC exports — quick wins, problems, meta tag fixes                                                          |
+| `/ca-analytics [path]`                           | Data-driven UX analysis from GA4/GSC — user flows, funnels, behavioral anomalies from real usage data                         |
 
 **Auto vs Manual:** Auto modes run without prompts (CI-ready). Manual modes offer interactive confirmations (choose items, edit before posting).
 
@@ -52,7 +54,7 @@ Reads `.code-analyzer-config.json` in the project root for exclusions and per-sk
 
 | MCP Server     | Install                                                                        | Used By                       |
 | -------------- | ------------------------------------------------------------------------------ | ----------------------------- |
-| **Puppeteer**  | `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer`    | ux-review, seo-audit          |
+| **Puppeteer**  | `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer`    | ux-review, seo-audit, analytics |
 | **Biome**      | Not yet available on npm — see [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017) | code-review, pr-review, debug |
 | **TypeScript** | Not yet available on npm — use VS Code `getDiagnostics` as fallback            | dead-code, perf, debug        |
 
