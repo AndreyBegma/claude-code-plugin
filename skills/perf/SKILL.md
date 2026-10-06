@@ -1,19 +1,13 @@
 ---
-name: ca-perf
+name: cs-perf
 description: Analyze code for performance issues — N+1 queries, unnecessary re-renders, memory leaks, bundle size problems
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion, mcp__typescript__*
+allowed-tools: Read, Grep, Glob, Bash, mcp__typescript__*
 ---
 
 # Performance Analyzer
 
 You are a performance optimization specialist. Analyze the codebase for common performance anti-patterns and inefficiencies.
-
-## Token Efficiency
-
-- Skip `node_modules`, `dist`, `.next`, `build` and patterns from `.code-analyzer-config.json`
-- Focus on **HIGH IMPACT findings** — skip micro-optimizations
-- Analyze critical paths first: API handlers, React components, DB queries
 
 ## Inputs
 
@@ -26,378 +20,196 @@ You are a performance optimization specialist. Analyze the codebase for common p
 
 ## Step 1: Gather Context
 
-1. Read `package.json` to identify:
-   - Framework (NestJS, Next.js, Express, React, etc.)
-   - ORM (Prisma, TypeORM, Sequelize, Drizzle)
-   - State management (Redux, Zustand, Jotai, React Query)
-   - Build tool (webpack, vite, turbopack, esbuild)
+Read `package.json` to identify framework, ORM, state management, and build tool. Read `CLAUDE.md` for performance-related conventions.
 
-2. Check project structure to understand architecture
-
-3. Read `CLAUDE.md` for any performance-related conventions
-
-4. **Check TypeScript MCP** — enhances call chain analysis accuracy.
-
-If TypeScript MCP is **not available**, ask user to install:
-
-Use `AskUserQuestion`:
-
-- **question**: "TypeScript MCP enhances performance analysis with accurate call chain tracking. Install it?"
-- **options**:
-
-| Option                    | Description                                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Skip (Recommended)**    | Continue without TypeScript MCP — package not yet available on npm. Use VS Code `getDiagnostics` as fallback |
-| **Learn More**            | TypeScript MCP server is not yet published as an npm package                                                 |
-
-If user picks **Skip**, output warning and continue:
-
-```
-⚠️ Continuing without TypeScript MCP. Call chain analysis will be less accurate.
-```
+**Check TypeScript MCP** — if available, use it for accurate call chain analysis (`findAllReferences()` to trace which callers hit expensive paths). If not: `⚠️ TypeScript MCP not available. Call chain analysis will rely on grep patterns only.`
 
 ## Step 2: Database & Query Analysis
 
 ### N+1 Query Detection
 
-Look for these patterns:
+Find files that contain ORM calls, then check if those calls are inside loops:
 
-1. **Loop with individual queries:**
+```bash
+grep -rn "\.\(find\|findOne\|findMany\|findAll\|query\|execute\|aggregate\|count\)\b" src/ --include="*.ts" -l
+```
 
-   ```typescript
-   // ❌ N+1 pattern
-   for (const user of users) {
-     const posts = await prisma.post.findMany({ where: { authorId: user.id } });
-   }
-   ```
+For each file found, read it and check if ORM calls are nested inside a loop (`for`, `while`, `forEach`, `.map()`, `.reduce()`). Flag:
 
-2. **Missing includes/relations:**
-
-   ```typescript
-   // ❌ Will cause N+1 when accessing user.posts later
-   const users = await prisma.user.findMany();
-   users.forEach((u) => console.log(u.posts)); // Each access = 1 query
-   ```
-
-3. **GraphQL resolvers without DataLoader:**
-   ```typescript
-   // ❌ N+1 in resolver
-   @ResolveField()
-   async author(@Parent() post: Post) {
-     return this.userService.findById(post.authorId); // Called N times
-   }
-   ```
+- `await Promise.all(items.map(item => repo.findOne(...)))` — N+1 even with Promise.all; should use `WHERE id IN (ids)`
+- `for (const item of items) { await db.find(...) }` — sequential N+1
+- GraphQL `@ResolveField` calling a service per-record without DataLoader
 
 ### Query Optimization Issues
 
-- Missing indexes on frequently queried fields
-- `SELECT *` when only specific fields needed
-- Missing pagination on list queries
-- Unbounded queries without `LIMIT`
-- Sorting without index support
-- Using `findMany` + filter instead of `findFirst` with condition
+```bash
+# Unbounded queries (no pagination/limit)
+grep -rn "findMany\b" src/ --include="*.ts" | grep -v "take:\|limit:\|skip:\|paginate\|cursor:"
 
-### Search patterns:
+# Potential SELECT * (full entity fetch without field selection)
+grep -rn "findMany\|findAll\|find({" src/ --include="*.ts" | grep -v "select:\|fields:\|attributes:"
+```
 
-```
-prisma.*.findMany
-.find({ where
-SELECT * FROM
-for.*await.*find
-forEach.*await
-map.*await.*find
-```
+Flag:
+- `findMany` without `take` or cursor pagination — unbounded list query
+- `findMany` + in-memory `.filter()` instead of pushing condition to the query
+- Check migration files for `CREATE TABLE` statements without a corresponding index on columns used in `WHERE`, `ORDER BY`, or `JOIN`
 
 ## Step 3: React Performance Analysis
 
 ### Unnecessary Re-renders
 
-1. **Missing memoization:**
+```bash
+# Inline objects in JSX props (new reference every render)
+grep -rn "style={{" src/ --include="*.tsx" | head -30
 
-   ```typescript
-   // ❌ New object every render
-   <Component style={{ color: 'red' }} />
+# Inline arrow functions in event handlers
+grep -rn "on[A-Z][a-z]*={(" src/ --include="*.tsx" | head -30
+grep -rn "on[A-Z][a-z]*={() =>" src/ --include="*.tsx" | head -30
 
-   // ❌ New callback every render
-   <Button onClick={() => handleClick(id)} />
-
-   // ❌ New array every render
-   <List items={data.filter(x => x.active)} />
-   ```
-
-2. **Prop drilling causing cascading re-renders:**
-   - Parent state change re-renders entire tree
-   - Missing `React.memo` on expensive components
-
-3. **Context misuse:**
-
-   ```typescript
-   // ❌ Entire tree re-renders on any context change
-   const AppContext = createContext({ user, theme, settings, ... });
-   ```
-
-4. **Expensive computations in render:**
-
-   ```typescript
-   // ❌ Runs on every render
-   const sorted = items.sort((a, b) => ...);
-
-   // ✅ Should use useMemo
-   const sorted = useMemo(() => items.sort(...), [items]);
-   ```
-
-### State Management Issues
-
-- Storing derived state (should compute from source)
-- Too granular state updates causing multiple re-renders
-- Missing selector memoization in Redux/Zustand
-- Fetching same data multiple times (missing cache)
-
-### Search patterns:
-
+# Expensive computations without memoization
+grep -rn "useMemo\|useCallback" src/ --include="*.tsx" -l
 ```
-useState.*useState.*useState
-onClick={() =>
-style={{
-useEffect.*\[\].*fetch
-createContext
+
+For each file with inline props, read it to confirm the prop is not a stable reference. Flag:
+
+- `style={{ ... }}` passed as prop — creates new object every render; extract to const or `useMemo`
+- `onClick={() => fn(id)}` — creates new function every render; use `useCallback` when passed to memoized children
+- Expensive array transforms (`filter`, `map`, `sort`) in render body without `useMemo`
+- Fat context objects (user + theme + settings merged in one context) — split or use selectors
+
+### State Issues
+
+```bash
+# Derived state stored in useState
+grep -rn "useState" src/ --include="*.tsx" -A 1 | grep -E "filter|map|reduce|sort|find\b"
 ```
+
+Flag:
+- `useState` holding data that can be computed from other state/props — compute inline or with `useMemo`
+- Duplicate `useQuery`/`useSWR` with the same key in multiple components — lift to shared provider
 
 ## Step 4: Memory Leak Detection
 
-### Common Patterns
-
-1. **Uncleared intervals/timeouts:**
-
-   ```typescript
-   // ❌ Never cleared
-   useEffect(() => {
-     setInterval(() => fetchData(), 5000);
-   }, []);
-   ```
-
-2. **Missing cleanup in useEffect:**
-
-   ```typescript
-   // ❌ Event listener never removed
-   useEffect(() => {
-     window.addEventListener("resize", handler);
-   }, []);
-   ```
-
-3. **Stale closures holding references:**
-
-   ```typescript
-   // ❌ Closure holds reference to large data
-   useEffect(() => {
-     const data = fetchLargeData();
-     return () => {
-       // data still referenced
-     };
-   }, []);
-   ```
-
-4. **Subscriptions not unsubscribed:**
-
-   ```typescript
-   // ❌ Observable never unsubscribed
-   useEffect(() => {
-     someObservable$.subscribe(handler);
-   }, []);
-   ```
-
-5. **WebSocket/SSE connections not closed:**
-   ```typescript
-   // ❌ Connection never closed
-   const ws = new WebSocket(url);
-   ```
-
-### Node.js Specific
-
-- Event emitter listeners not removed
-- Stream not properly closed/destroyed
-- Large objects cached indefinitely
-- Circular references preventing GC
-
-### Search patterns:
-
+```bash
+# useEffect that starts async resources — check for missing cleanup
+grep -rn "useEffect" src/ --include="*.tsx" -A 15 | grep -B8 "setInterval\|setTimeout\|addEventListener\|\.subscribe\|\.connect\|EventSource\|WebSocket"
 ```
-setInterval
-setTimeout
-addEventListener
-subscribe
-new WebSocket
-EventEmitter
-\.on\(
+
+For each match, read the full `useEffect` block. Flag if the effect does **not** return a cleanup function:
+
+```typescript
+// BAD — timer never cleared
+useEffect(() => {
+  const id = setInterval(() => tick(), 1000)
+}, [])
+
+// GOOD
+useEffect(() => {
+  const id = setInterval(() => tick(), 1000)
+  return () => clearInterval(id)
+}, [])
 ```
+
+Node.js:
+
+```bash
+# Event listeners without removal
+grep -rn "\.on(" src/ --include="*.ts" | grep -v "\.off(\|removeListener\|once("
+```
+
+Flag:
+- `EventEmitter.on()` without corresponding `off()` or `removeListener()`
+- Streams not `.destroy()`ed after use
+- In-memory caches or maps that grow without eviction (no max size, no TTL)
 
 ## Step 5: Bundle Size Analysis
 
-### Large Dependencies
+```bash
+# Heavy libraries with lighter alternatives
+grep -rn "from 'moment'" src/ --include="*.ts" --include="*.tsx"
+grep -rn "from 'lodash'" src/ --include="*.ts" --include="*.tsx"
+grep -rn "^import _ from" src/ --include="*.ts" --include="*.tsx"
+grep -rn "from 'axios'" src/ --include="*.ts" --include="*.tsx"
+grep -rn "from 'uuid'" src/ --include="*.ts" --include="*.tsx"
 
-Check for:
+# Dev-only packages imported in production code
+grep -rn "from '@testing-library" src/ --include="*.ts" --include="*.tsx" | grep -v "\.spec\.\|\.test\."
 
-1. **Heavy libraries with lighter alternatives:**
-   - `moment` → `date-fns` or `dayjs`
-   - `lodash` → `lodash-es` or native methods
-   - `axios` → `fetch` (native)
-   - `uuid` → `crypto.randomUUID()` (native)
-
-2. **Importing entire library:**
-
-   ```typescript
-   // ❌ Imports entire lodash
-   import _ from "lodash";
-
-   // ✅ Tree-shakeable
-   import { debounce } from "lodash-es";
-   ```
-
-3. **Dev dependencies in production:**
-   - Check if dev tools imported in production code
-   - `@testing-library/*` in src files
-   - Type-only imports not using `import type`
-
-4. **Duplicate dependencies:**
-   - Same library in multiple versions
-   - Run `npm ls <package>` to check
-
-### Dynamic Import Opportunities
-
-Look for:
-
-- Large components that could be lazy loaded
-- Routes without code splitting
-- Heavy libraries used only in specific features
-
-### Search patterns:
-
+# Missing 'import type' (causes runtime import of types)
+grep -rn "^import {" src/ --include="*.ts" | grep -v "import type" | head -20
 ```
-import.*from 'lodash'
-import.*from 'moment'
-require\('
+
+Flag heavy libraries and suggest lighter alternatives (e.g. `dayjs`/`date-fns` for `moment`, native `crypto.randomUUID()` for `uuid`, `fetch` for `axios`, named `lodash-es` imports for `lodash`).
+
+Check for duplicate package versions:
+```bash
+npm ls --depth=1 2>/dev/null | grep " deduped\| — " | head -20
+```
+
+```bash
+# Pages/routes without lazy loading
+grep -rn "^import.*from.*pages/\|^import.*from.*views/" src/ --include="*.ts" --include="*.tsx" | grep -v "lazy\|dynamic\|React.lazy"
 ```
 
 ## Step 6: API & Network Performance
 
-### Inefficient Patterns
+```bash
+# Sequential awaits that could be parallelized
+grep -rn "^\s*const .* = await" src/ --include="*.ts" -A 1 | grep -B1 "^\s*const .* = await" | head -40
+```
 
-1. **Sequential requests that could be parallel:**
+For each file with consecutive `await` calls, read the function body and check if the awaited operations have no data dependency between them. Flag as `Promise.all` candidate:
 
-   ```typescript
-   // ❌ Sequential
-   const user = await getUser(id);
-   const posts = await getPosts(id);
+```typescript
+// BAD — sequential, 2x slower
+const user = await getUser(id)
+const org = await getOrg(orgId)  // doesn't use user
 
-   // ✅ Parallel
-   const [user, posts] = await Promise.all([getUser(id), getPosts(id)]);
-   ```
+// GOOD
+const [user, org] = await Promise.all([getUser(id), getOrg(orgId)])
+```
 
-2. **Missing caching:**
-   - Same API called multiple times
-   - No HTTP cache headers
-   - No React Query/SWR caching
-
-3. **Over-fetching:**
-   - Fetching entire object when only ID needed
-   - Not using GraphQL fragments efficiently
-
-4. **Under-fetching:**
-   - Multiple round trips for related data
-   - Should use `include` or batch endpoints
+Flag:
+- Same API called in multiple places without caching (check for duplicate `useQuery` / `fetch` calls for the same resource)
+- Fetching full objects when only an ID or one field is needed (over-fetching)
+- Multiple round trips for related data that could be batched with `include` or a batch endpoint
 
 ## Output Format
 
-````
-## Performance Analysis
-
-**Scope:** [what was analyzed]
-**Framework:** [detected framework/ORM]
-
-## Summary
-
-| Category | Issues | Severity |
-|----------|--------|----------|
-| N+1 Queries | 3 | HIGH |
-| Re-renders | 5 | MEDIUM |
-| Memory Leaks | 1 | HIGH |
-| Bundle Size | 2 | LOW |
-
-## Findings
-
-### 🔴 HIGH: N+1 Query in UserService
-
-**Location:** [src/services/user.service.ts:45](src/services/user.service.ts#L45)
-
-**Problem:**
-```typescript
-// Current code
-for (const user of users) {
-  const posts = await prisma.post.findMany({ where: { authorId: user.id } });
-}
-````
-
-**Impact:** ~100 queries for 100 users instead of 1
-
-**Fix:**
-
-```typescript
-const users = await prisma.user.findMany({
-  include: { posts: true },
-});
-```
-
----
-
-### 🟡 MEDIUM: Missing useMemo in Dashboard
-
-**Location:** [src/components/Dashboard.tsx:23](src/components/Dashboard.tsx#L23)
-
-**Problem:**
-
-```typescript
-const sortedItems = items.sort((a, b) => a.date - b.date);
-```
-
-**Impact:** Re-sorts on every render (~500 items)
-
-**Fix:**
-
-```typescript
-const sortedItems = useMemo(
-  () => [...items].sort((a, b) => a.date - b.date),
-  [items],
-);
-```
-
----
-
-## Recommendations
-
-1. **Quick Wins** (low effort, high impact):
-   - [specific fixes]
-
-2. **Medium Term**:
-   - [architectural improvements]
-
-3. **Consider for Future**:
-   - [larger refactoring]
+Start with a summary table:
 
 ```
+| Category    | Issues | Top Severity |
+|-------------|--------|--------------|
+| DB queries  | 2      | HIGH         |
+| React       | 1      | MEDIUM       |
+| Memory      | 0      | —            |
+| Bundle      | 2      | MEDIUM       |
+| API         | 1      | HIGH         |
+```
+
+Then list findings:
+
+```
+### [CRITICAL/HIGH/MEDIUM/LOW]: [Short title]
+**Location:** file:line
+**Impact:** [estimated cost — e.g., "100 queries per request instead of 1", "saves ~40KB gzip"]
+**Fix:** [concrete fix — include code snippet if non-trivial]
+```
+
+End with:
+- **Quick Wins** — low effort, high impact (fix in < 1 hour)
+- **Medium Term** — higher effort but worth it
 
 ## Severity Levels
 
-- **CRITICAL** — Production performance issue, causes timeouts or crashes
-- **HIGH** — Noticeable slowdown, N+1 queries, memory leaks
-- **MEDIUM** — Suboptimal pattern, unnecessary re-renders, large bundle
-- **LOW** — Micro-optimization, nice-to-have improvement
+- **CRITICAL** — causes timeouts or crashes in production (unbounded queries, uncontrolled memory growth)
+- **HIGH** — noticeable slowdown on normal usage (N+1 queries, memory leaks, sequential awaits on hot path)
+- **MEDIUM** — unnecessary overhead affecting perceived performance (re-renders, large bundle, suboptimal patterns)
+- **LOW** — micro-optimization
 
 ## Important
 
-- **Read-only** — never modify code (analysis only)
-- **Be specific** — every finding must reference `file:line`
-- **Measure impact** — estimate the performance cost where possible
-- **Prioritize** — focus on high-impact issues, skip nitpicks
-- **Consider trade-offs** — some "optimizations" hurt readability without meaningful gain
-- If using React, check if React DevTools Profiler findings are mentioned in any docs/issues
-```
+- Estimate the performance cost for every finding (queries saved, render cycles avoided, KB saved)
+- If `$ARGUMENTS` is a specific category, run only the relevant Step (2 = queries, 3 = react, 4 = memory, 5 = bundle, 6 = api)

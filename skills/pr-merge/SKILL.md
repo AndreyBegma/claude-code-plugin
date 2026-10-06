@@ -1,5 +1,5 @@
 ---
-name: ca-pr-prepare-merge
+name: cs-pr-merge
 description: Extract generalizable rules from PR comments and open a PR updating CLAUDE.md instructions
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, Edit
@@ -48,8 +48,6 @@ Run these commands **one at a time** (do not chain):
    gh api repos/OWNER/REPO/pulls/$ARGUMENTS/reviews --paginate
    ```
 
-Replace `OWNER` and `REPO` with the values from command 1.
-
 ## Step 2: Filter Comments
 
 From all collected comments, keep ONLY comments that:
@@ -76,10 +74,7 @@ From all collected comments, keep ONLY comments that:
 
 ## Step 3: Read Current Rules
 
-Read existing project rules to avoid duplicates:
-
-1. **`CLAUDE.md`** — read and understand the existing rules and structure.
-2. **Project-local skills** — scan for `.claude/skills/**/*.md` in the target project. These may already contain conventions that overlap with PR feedback. **Do not** read the analyzer plugin's own skill files.
+Read `CLAUDE.md` and `.claude/skills/**/*.md` to avoid duplicates. Do not read the analyzer plugin's own skill files.
 
 If no `CLAUDE.md` exists, create one with this structure:
 
@@ -119,10 +114,8 @@ For each generalizable comment:
 
 ### Rule format:
 
-- One line per rule, prefixed with `- `
 - Imperative mood: "Use X", "Always Y", "Never Z", "Prefer A over B"
-- Include a brief "why" only if not obvious
-- Include a bad/good code example ONLY if the pattern is non-trivial
+- Include "why" only if not obvious; include a code example only if the pattern is non-trivial
 
 ## Step 5: Show Extracted Rules
 
@@ -145,54 +138,7 @@ Skipped: 5 comments (not generalizable / duplicates / bot)
 Including all N rules in CLAUDE.md...
 ```
 
-If no generalizable rules were found, skip to Step 7 (Output) and report that no PR was created.
-
-## Step 5.5: Check Branch Protection & Merge Readiness
-
-Before creating the rules PR, check if the **source PR** is ready to merge:
-
-1. Check PR status:
-
-   ```bash
-   gh pr view $ARGUMENTS --json mergeable,mergeStateStatus,reviewDecision,statusCheckRollup
-   ```
-
-2. Parse the response and show a checklist:
-
-   ```
-   ## Merge Readiness for PR #$ARGUMENTS
-
-   - [✅/❌] CI Status: [passed/failed/pending]
-   - [✅/❌] Reviews: [approved/changes_requested/review_required]
-   - [✅/❌] Conflicts: [none/has conflicts]
-   - [✅/❌] Mergeable: [yes/no/unknown]
-
-   Overall: [READY TO MERGE / NOT READY]
-   ```
-
-3. If there are **conflicts**:
-
-   ```
-   ⚠️ PR #$ARGUMENTS has merge conflicts.
-   The author needs to resolve conflicts before merging.
-   ```
-
-4. If **reviews are required** but not approved:
-
-   ```
-   ⚠️ PR #$ARGUMENTS requires review approval.
-   Current status: [CHANGES_REQUESTED / REVIEW_REQUIRED]
-   ```
-
-5. If **CI failed**:
-
-   ```
-   ⚠️ CI checks failed on PR #$ARGUMENTS.
-   Failed checks: [list of failed checks]
-   ```
-
-6. Continue to Step 6 regardless — the rules PR can be created even if source PR isn't ready.
-   The checklist is informational for the user.
+If no generalizable rules were found, report "No generalizable feedback found. No PR created." and stop.
 
 ## Step 6: Create PR
 
@@ -272,30 +218,7 @@ Extracted generalizable coding rules from review comments on PR #<PR_NUMBER> and
 - Rules were placed in the most appropriate section of CLAUDE.md
 ```
 
-## Step 7: Output
-
-```
-## PR Prepare Merge: #$ARGUMENTS
-
-### Extracted Rules
-- [each new rule with source reference]
-
-### Skipped Comments
-- [count] comments skipped (not generalizable / already covered / bot comments)
-
-### PR Created
-- PR URL: [link]
-- Branch: claude-instructions-from-pr-$ARGUMENTS
-- Base: <HEAD_REF_NAME> (PR #$ARGUMENTS branch)
-
-### No Changes Needed
-[If no generalizable rules were found, state this and do NOT create a PR]
-```
-
 ## Important
 
 - **Read-only on the target PR** — do not modify, comment on, or merge the original PR
 - **Only modify CLAUDE.md** — do not touch any other files
-- **Preserve existing structure** — add rules to existing sections where they fit; only create new sections if necessary
-- **No duplicates** — if a rule already exists in CLAUDE.md or project-local skills (even worded differently), skip it
-- **If no rules found** — report that no generalizable feedback was found and exit without creating a PR

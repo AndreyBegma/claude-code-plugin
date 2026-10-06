@@ -1,5 +1,5 @@
 ---
-name: ca-issue
+name: cs-issue
 description: Create GitHub issues from analysis findings, bug descriptions, or code inspection — with user confirmation before each issue
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion
@@ -13,7 +13,7 @@ You create well-structured GitHub issues from analysis findings or bug descripti
 
 `$ARGUMENTS` — one of:
 
-- **Empty** — collect findings from the current conversation (previous `/ca-security`, `/ca-debug`, etc.)
+- **Empty** — collect findings from the current conversation (previous `/cs-security`, `/cs-debug`, etc.)
 - **Text description** — `"Login fails when email contains +"` — enrich with code context and create one issue
 - **File path** — `src/api/handler.ts` — inspect the file, find problems, propose issues
 
@@ -21,7 +21,7 @@ You create well-structured GitHub issues from analysis findings or bug descripti
 
 ### If no arguments (post-analysis mode):
 
-1. Review the current conversation for findings from previous skills (`/ca-security`, `/ca-dead-code`, `/ca-debug`, `/ca-code-review`)
+1. Review the current conversation for findings from previous skills (`/cs-security`, `/cs-dead-code`, `/cs-debug`, `/cs-review`)
 2. Collect all CRITICAL and HIGH findings
 3. Include MEDIUM findings only if there are fewer than 5 total issues
 4. If no previous analysis exists, tell the user to run an analysis first or provide a description
@@ -36,8 +36,7 @@ You create well-structured GitHub issues from analysis findings or bug descripti
 
 1. Read the file
 2. Check `git log --oneline -10 -- $FILE` for recent changes
-3. Look for common problems: missing error handling, security issues, unclear logic, TODOs/FIXMEs/HACKs
-4. Propose issues for each finding
+3. Propose issues for each finding
 
 ## Step 2: Check for Duplicates
 
@@ -55,7 +54,7 @@ If a similar issue already exists:
 
 ## Step 3: Prepare Preview
 
-Show the user a numbered list of all proposed issues, then use `AskUserQuestion` (Bulk Selection with severity — see `../_shared/confirmation-flow.md`):
+Show the user a numbered list as **plain text**, then use `AskUserQuestion`:
 
 ```
 Found N issues to create:
@@ -78,47 +77,25 @@ Options:
 | **High+** | Create CRITICAL + HIGH issues |
 | **None** | Stop, create nothing |
 
-User can type numbers (`1 3`) or inverted (`!1`) in "Other".
+User can type in "Other": numbers (`1 3`) = specific items, inverted (`!1`) = all except. These are **item numbers**, not option numbers.
 
 **Wait for user response before proceeding.**
 
 ## Step 4: Create Issues
 
-For each confirmed issue, show the full issue body and use `AskUserQuestion` (Single-Item Confirmation — see `../_shared/confirmation-flow.md`):
-
-```
-Issue preview:
-
-Title: [CRITICAL] SQL injection via string interpolation — UserService.ts:45
-Labels: bug, security, priority: critical
-
-## Description
-[full body here]
-```
-
-Options:
-| Option | Description |
-|--------|-------------|
-| **Send (Recommended)** | Create the issue as-is |
-| **Edit** | Modify the title or body before creating |
-
-Then run:
+For each confirmed issue, run:
 
 ```bash
 gh issue create --title "<title>" --body "<body>" --label "<labels>"
 ```
+
+Show `✅ Created #N — <title> — <url>` after each.
 
 ### Issue Title Format
 
 ```
 [SEVERITY] Short description — file:line
 ```
-
-Examples:
-
-- `[CRITICAL] SQL injection via string interpolation — UserService.ts:45`
-- `[HIGH] Missing authentication on admin endpoint — admin.controller.ts:23`
-- `[BUG] Login fails when email contains special characters`
 
 ### Issue Body Format
 
@@ -142,18 +119,18 @@ Examples:
 
 ## Found By
 
-Code Sentinel `/ca-issue` — automated analysis
+Code Sentinel `/cs-issue` — automated analysis
 ````
 
 ### Labels
 
 Apply labels based on issue type. Create labels if they don't exist:
 
-- Finding from `/ca-security` → `security`
-- Finding from `/ca-dead-code` → `dead-code`
-- Finding from `/ca-debug` → `bug`
-- Finding from `/ca-code-review` → `code-quality`
-- Finding from `/ca-perf` → `performance`
+- Finding from `/cs-security` → `security`
+- Finding from `/cs-dead-code` → `dead-code`
+- Finding from `/cs-debug` → `bug`
+- Finding from `/cs-review` → `code-quality`
+- Finding from `/cs-perf` → `performance`
 - Always add: `claude-generated`
 
 Severity labels:
@@ -172,24 +149,17 @@ The `--force` flag creates the label if it doesn't exist or updates it if it doe
 
 ## Step 5: Report
 
-After creating issues, show a summary:
+After all issues are created, show skipped items:
 
 ```
-Created N issues:
-
-- #101 [CRITICAL] SQL injection in UserService.ts:45
-- #102 [HIGH] Hardcoded JWT secret in config.ts:12
-
 Skipped:
 - [HIGH] Missing auth guard (duplicate of #87)
 - [MEDIUM] N+1 query (user declined)
 ```
 
+Omit if nothing was skipped.
+
 ## Important
 
 - **Never create issues without user confirmation** — this is the core rule
-- **Check duplicates first** — avoid cluttering the issue tracker
-- **One finding = one issue** — don't combine unrelated findings
-- **Include code context** — issues should be actionable without re-running analysis
-- **Respect the repo** — only create issues in the current repo (`gh` uses the current git remote)
-- If `gh` is not authenticated, tell the user to run `gh auth login` first
+- If `gh` is not authenticated, tell the user to run `gh auth login` and stop

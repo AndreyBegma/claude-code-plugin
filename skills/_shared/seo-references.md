@@ -176,6 +176,41 @@ export const metadata: Metadata = {
 
 Note: Also supports localized column names (auto-detected).
 
+## Analytics Benchmarks
+
+Industry-average benchmarks for comparison in `/cs-analytics` reports.
+
+### Conversion Rates
+
+| Metric                        | Typical Range | Source Context              |
+| ----------------------------- | ------------- | --------------------------- |
+| Form completion (simple)      | 30-50%        | 3-5 fields, no login       |
+| Form completion (complex)     | 15-25%        | 6+ fields, multi-step      |
+| E-commerce cart → purchase    | 25-45%        | Varies by price point       |
+| Newsletter signup (sitewide)  | 1-3%          | Visible CTA, value prop     |
+| Newsletter signup (blog only) | 2-5%          | Content-relevant offer      |
+| Contact form submission       | 10-20%        | Simple form, visible        |
+| Landing page → key event      | 2-5%          | Depends on intent match     |
+
+### Engagement Time
+
+| Page Type         | Healthy Range | Low (flag) |
+| ----------------- | ------------- | ---------- |
+| Blog post         | 30-90s        | < 15s      |
+| Product/trip page | 40-120s       | < 20s      |
+| Homepage          | 20-60s        | < 10s      |
+| Contact page      | 15-40s        | < 8s       |
+| Checkout          | 60-180s       | < 20s      |
+
+### Mobile vs Desktop
+
+| Metric           | Mobile typical | Desktop typical |
+| ---------------- | -------------- | --------------- |
+| Bounce rate      | 55-70%         | 40-55%          |
+| Form completion  | 10-20% lower   | baseline        |
+| Engagement time  | 15-30% lower   | baseline        |
+| Conversion rate  | 30-50% lower   | baseline        |
+
 ## GA4 File Patterns
 
 | Pattern                   | Contains    |

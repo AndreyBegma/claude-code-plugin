@@ -1,5 +1,5 @@
 ---
-name: ca-seo-audit
+name: cs-seo
 description: SEO analysis from GSC exports — finds quick wins, problems, and proposes code fixes for meta tags
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, Edit, MultiEdit, AskUserQuestion, mcp__puppeteer__*, mcp__playwright__*, mcp__browserbase__*
@@ -9,7 +9,39 @@ allowed-tools: Read, Grep, Glob, Bash, Edit, MultiEdit, AskUserQuestion, mcp__pu
 
 Analyze Google Search Console CSV exports, identify optimization opportunities, propose code fixes.
 
-**Reference**: See `_shared/seo-references.md` for CTR benchmarks, meta tag patterns, structured data templates.
+## CTR Benchmarks by Position
+
+| Position | Desktop | Mobile |
+|----------|---------|--------|
+| 1 | 28-32% | 24-28% |
+| 2 | 14-18% | 12-15% |
+| 3 | 9-12% | 8-10% |
+| 4-5 | 5-8% | 4-6% |
+| 6-10 | 2-5% | 1.5-4% |
+| 11-20 | 1-2% | 0.5-1.5% |
+
+## GSC/GA4 File Patterns
+
+| Pattern | Contains |
+|---------|----------|
+| `Queries*.csv` | Search queries |
+| `Pages*.csv` | Page performance |
+| `Devices*.csv` | Device breakdown |
+| `Countries*.csv` | Geo distribution |
+| `Chart*.csv` | Daily trends |
+| `*Landing_page*.csv` | GA4 entry pages |
+| `*Pages_and_screens*.csv` | GA4 all pages |
+| `*Events*.csv` | GA4 user events |
+
+Supports localized column names (auto-detected).
+
+## Structured Data Templates
+
+Use these schemas customized with actual site data: **Article** (`@type: Article` — headline, author, datePublished), **Product** (`@type: Product` — name, offers with price/currency), **FAQ** (`@type: FAQPage` — mainEntity array of Question/Answer), **TouristTrip** (`@type: TouristTrip` — itinerary, provider, offers), **LocalBusiness** (`@type: LocalBusiness` — name, url, telephone, address), **HowTo** (`@type: HowTo` — step array), **Breadcrumb** (`@type: BreadcrumbList` — itemListElement).
+
+## Meta Tag Patterns
+
+**Next.js App Router:** `export const metadata: Metadata = { title, description, openGraph }` or `generateMetadata()`. **Pages Router:** `<Head><title>`. **React Helmet:** `<Helmet><title>`.
 
 ## Inputs
 
@@ -28,30 +60,14 @@ Analyze Google Search Console CSV exports, identify optimization opportunities, 
 
 ## Step 1: Check Browser MCP
 
-Check if Browser MCP is available. Try to use one of: `mcp__puppeteer__*`, `mcp__playwright__*`, or `mcp__browserbase__*`.
+Try to use one of: `mcp__puppeteer__*`, `mcp__playwright__*`, or `mcp__browserbase__*`. Browser MCP enables SERP screenshots and live site meta tag analysis.
 
-If **no browser MCP is available**, ask user to install:
-
-Use `AskUserQuestion`:
-
-- **question**: "Browser MCP enables SERP screenshots and live site meta tag analysis. Install it?"
-- **options**:
-
-| Option                    | Description                                                                   |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| **Install (Recommended)** | Run `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer` |
-| **Skip**                  | Continue without browser (limited in remote mode — can't fetch meta tags)       |
-
-If user picks **Skip**, output warning and continue:
+If no browser MCP is available, continue and note:
 
 ```
-⚠️ Continuing without Browser MCP. SEO analysis will have limitations:
-- No SERP screenshots
-- No competitor title/description analysis
-- Remote mode cannot fetch live meta tags
+⚠️ Browser MCP not available — no SERP screenshots, no competitor analysis, remote mode cannot fetch live meta tags.
+To enable: claude mcp add puppeteer --scope user -- npx -y @modelcontextprotocol/server-puppeteer
 ```
-
-After installation, verify MCP is working by navigating to a test URL.
 
 ## Step 2: Detect & Parse Data
 
@@ -64,7 +80,7 @@ GSC: Queries (1,234), Pages (89), Devices (3), Countries (12)
 Period: 2026-01-05 to 2026-02-04 | Clicks: 12,456 | CTR: 2.73%
 ```
 
-> **Tip**: If GA4 CSV files are detected in the folder, suggest running `/ca-analytics` for behavioral analysis (funnels, conversions, user flows).
+> **Tip**: If GA4 CSV files are detected in the folder, suggest running `/cs-analytics` for behavioral analysis (funnels, conversions, user flows).
 
 **Branded split**: Auto-detect brand from domain/package.json. Split queries into branded/non-branded with separate metrics.
 
@@ -83,7 +99,7 @@ Period: 2026-01-05 to 2026-02-04 | Clicks: 12,456 | CTR: 2.73%
 | Factor                | Weight | How to score                                                                             |
 | --------------------- | ------ | ---------------------------------------------------------------------------------------- |
 | Avg Position          | 25%    | 25 if avg < 5, 20 if < 8, 15 if < 12, 10 if < 20, 5 if < 30, 0 if 30+                  |
-| CTR vs benchmark      | 20%    | Per-page: compare actual CTR to `_shared/seo-references.md` benchmark for that position. Score = avg(actual/benchmark) × 20, capped at 20 |
+| CTR vs benchmark      | 20%    | Per-page: compare actual CTR to the CTR benchmarks table above benchmark for that position. Score = avg(actual/benchmark) × 20, capped at 20 |
 | Mobile/Desktop parity | 15%    | 15 if gap < 20%, 10 if < 50%, 5 if < 100%, 0 if 100%+. Gap = abs(mobile_CTR - desktop_CTR) / min(mobile_CTR, desktop_CTR) |
 | Zero-click pages      | 15%    | 15 if < 5% pages have 0 clicks, 10 if < 15%, 5 if < 30%, 0 if 30%+                      |
 | Cannibalization       | 15%    | 15 if no clusters, 10 if 1-2 clusters, 5 if 3-5, 0 if 6+                                |
@@ -101,7 +117,7 @@ For each quick win, show:
 
 - Page URL, current title
 - Current metrics: clicks, impressions, CTR, avg position
-- **CTR gap**: compare actual CTR vs benchmark for that position (see `_shared/seo-references.md`)
+- **CTR gap**: compare actual CTR vs benchmark for that position (see the CTR benchmarks table above)
 - **Estimated gain with formula**: `monthly_impressions × (benchmark_CTR - current_CTR)`. Example: "4,693 impressions × (3.5% benchmark at pos 8 − 0.47% actual) = +142 clicks/month"
 - Specific action (rewrite title, add structured data, etc.)
 
@@ -194,7 +210,7 @@ Table with: #, Action, Impact, Effort, Estimated Gain.
 Per page: current → new title, current → new description, rationale.
 
 ## Structured Data Recommendations
-Use templates from _shared/seo-references.md but customize with actual site data
+Use the structured data templates from above, customized with actual site data
 (real page titles, real company name, real URLs — not generic placeholders).
 ```
 
@@ -203,7 +219,4 @@ Use templates from _shared/seo-references.md but customize with actual site data
 ## Important
 
 - **Read-only by default** — `--fix` required for changes, confirmation always needed
-- **Three modes** — Local (full), Remote (recommendations), Data-only (metrics)
-- **Framework-aware** — uses appropriate meta patterns per framework
-- **Privacy** — all analysis local, nothing sent externally
-- **Browser MCP optional** — but critical for remote mode
+- **Browser MCP required for remote mode** — without it, remote meta tag analysis is not possible

@@ -1,5 +1,5 @@
 {
-  "version": "1.8.2",
+  "version": "1.15.0",
   "description": "Configuration for Claude Code Analyzer Plugin",
 
   "exclusions": {
