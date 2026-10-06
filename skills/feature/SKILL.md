@@ -155,6 +155,15 @@ For each step of the plan:
    **no Claude attribution trailer when the person's or project's instructions
    forbid it**, whatever a harness reminder says.
 
+**Processes you start** (a dev server, the built API, a browser check): start
+in the background capturing the PID (`cmd > /tmp/<name>.log 2>&1 & echo $!`),
+write the number down, stop it with `kill <that number>`. **Never `pkill`,
+`killall`, or `kill $(pgrep …)` / `kill $(ss … | grep …)`** — a pattern also
+matches other projects' servers and containers running as the same user (this
+restarted six unrelated API containers once). The plugin's kill guard refuses
+those forms. Before starting a server, check its port is free; if it is taken by
+something that is not yours, use another port — never stop the other process.
+
 **A problem that blocks a step stops the step**: interactive — ask;
 `--worker` — report `blocked` and keep going on what does not depend on it;
 `--auto` — stop and report (Stop conditions).
@@ -238,3 +247,4 @@ Stop and report — what is blocking, what would unblock it, what is done — wh
 - Fake a success state, or disable a test.
 - Bump versions or write release notes unless the project's rules say a feature
   pull request does that.
+- Stop any process by name or pattern, or any process you did not start.

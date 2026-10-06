@@ -61,6 +61,14 @@ already answered it, or `--calibrate` was given (history only, no question).
 |---|---|---|
 | `Execution` | Will this be run through `/code-sentinel:orchestrator` (autonomous agents), or done by people? | **Orchestrator (agents)** — estimate slots, critical path with N workers, agent wall-clock and human review time; check it is ready to dispatch · **Team (people)** — estimate person-days, capacity and sprint fit · **Compare both** — side by side, to decide · **Not sure yet** — estimate for people, note what changes with the fleet |
 
+**Look before you ask** — the recommendation must come from facts, in one
+`Bash` call:
+
+```sh
+cat .code-analyzer-config.json 2>/dev/null | grep -A12 '"orchestrator"'
+gh label list --limit 100 2>/dev/null | grep -E '^cs:' ; git remote -v | head -2
+```
+
 Recommend **Orchestrator** when the repository already has the orchestrator set
 up (`.code-analyzer-config.json` → `orchestrator`, or `cs:*` labels exist) and
 the work is a feature/bug with checkable acceptance criteria; recommend **Team**

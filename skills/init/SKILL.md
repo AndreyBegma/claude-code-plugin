@@ -56,7 +56,7 @@ A port is taken if anything listens on it **or** a container publishes it:
 
 ```sh
 ss -ltnH 2>/dev/null | awk '{print $4}' | sed -E 's/.*:([0-9]+)$/\1/' | sort -un
-docker ps --format '{{.Ports}}' 2>/dev/null | grep -oE ':[0-9]+->' | tr -d ':->' | sort -un
+docker ps --format '{{.Ports}}' 2>/dev/null | grep -oE ':[0-9]+->' | tr -d ':>-' | sort -un
 ```
 
 For each role, the recommendation is the first free port at or above its

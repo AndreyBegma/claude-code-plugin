@@ -42,7 +42,8 @@
       "!**/dist",
       "!**/.next",
       "!**/.turbo",
-      "!**/generated"
+      "!**/generated",
+      "!**/next-env.d.ts"
     ]
   }
 }
