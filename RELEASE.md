@@ -10,6 +10,12 @@
   - Merges green PRs itself, resumes dead workers in place, refills every free slot in the same pass, wakes on events via `watch.sh` under `Monitor`
   - Bundled scripts in `skills/orchestrator/scripts/`: `dispatch.sh` (worktree + pre-flight + launch), `watch.sh` (event stream), `fence.py` (`PreToolUse` ownership fence, passed via `--settings` — nothing committed into the target repo), trust / bypass-permission pre-flight helpers, `fence_test.py`
 - **`/cs-worker`** — what a dispatched session runs: one brief, one issue, checkpoint reports through `.orchestrator-reply.md`, stops before merge
+- **`/cs-estimate`** — evidence-based estimation, synthesised from the best estimate skills on skills.sh (akillness `task-estimation`, aakash-dhar `estimate`, Claude-Code-Game-Studios `estimate`) and integrated with the pipeline
+  - One mode per run (`triage` / `sprint` / `forecast` / `spike` / `wave`), lightest honest unit, discovery separated from delivery, split-or-spike decision, safe/unsafe-use note
+  - Code evidence (fan-in, churn, tests, precedent), 1–5 complexity factors, PERT range, named adjustments (no silent padding), confidence bands
+  - Calibration from this repo's merged PRs and earlier posted estimates (`--calibrate`); critical path and total effort for `cs-spec` parallel plans; agent vs human-review effort
+  - `--queue` table for all ready issues; `--post` comment + `size:` label (read by `cs-orchestrator`)
+  - Asks who executes the work first — orchestrator fleet (slots, critical path, agent wall-clock, human review, dispatch-readiness check), team (person-days, focus factor, sprint fit) or both compared; ends by offering to queue the issue for `/cs-orchestrator` (`--fleet` / `--team` / `--compare` skip the question)
 - **`/cs-init`** — fullstack monorepo scaffold (Bun + Turborepo, NestJS 11 + Prisma 7 + PostgreSQL 16, Next.js 16 + React 19 + Tailwind 4, shared package, Biome 2, Jest)
   - Interview: name, title, location, API / web / DB ports — recommendations computed from listening sockets and published container ports, validated free and distinct
   - `scaffold.sh` + `template/`; verified end to end: install, `biome check`, tests, build, initial migration, seed, `/health`
@@ -27,7 +33,7 @@
 
 ### Files Changed
 
-- `skills/orchestrator/**`, `skills/worker/SKILL.md`, `skills/feature/SKILL.md`, `skills/spec/SKILL.md`, `skills/init/**` — new
+- `skills/orchestrator/**`, `skills/worker/SKILL.md`, `skills/feature/SKILL.md`, `skills/spec/SKILL.md`, `skills/init/**`, `skills/estimate/SKILL.md` — new
 - `skills/issue/SKILL.md` — autonomous and queue modes
 - `CLAUDE.md`, `README.md`, `.code-analyzer-config.json` — docs and config
 - `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` — version bump to 1.24.0

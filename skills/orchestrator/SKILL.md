@@ -207,6 +207,11 @@ suggested model, and which is the **lead**. Then it is a **wave**: take the spli
 written. A slot whose `Depends on` names the lead is `BLOCKED — work` until the
 lead's pull request has **merged**, not until it is open.
 
+**A `size: XL` / `size: XXL` label** (from `/code-sentinel:estimate --post`) on
+an issue without a `## Parallel plan` is not one slot: treat it as `NO SPEC`,
+comment that it needs splitting (`/code-sentinel:spec`), and move on. A
+`size:` label also informs Phase 4 — L and above lean Opus.
+
 **A green test suite does not clear a gate.** If you find yourself reasoning that
 a gate is "probably fine", that is the gate working.
 

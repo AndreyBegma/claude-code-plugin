@@ -262,7 +262,9 @@ Where it goes:
    only after that docs pull request has merged.
 
 Then say, in one block: the issue URL, the spec URL, the slots, the lead, whether
-it is queued, and that `/code-sentinel:orchestrator` is what dispatches it.
+it is queued, and that `/code-sentinel:orchestrator` is what dispatches it. For a
+wave, offer `/code-sentinel:estimate #<n> --post` — it sizes each slot and gives
+the critical path with N workers.
 
 ## Never
 

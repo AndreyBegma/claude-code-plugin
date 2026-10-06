@@ -35,6 +35,7 @@ After installation, the `/cs-*` commands will be available in Claude Code.
 | `/cs-debug <error\|#issue>`        | Deep debugging — trace root cause; close issue if already fixed                                       |
 | `/cs-issue [description] [--auto] [--ready]` | Create GitHub issues from findings or requests — duplicate check, user confirmation or `--auto`; `--ready` queues for the orchestrator |
 | `/cs-init [name] [dir]`            | Scaffold a fullstack monorepo (Bun + Turborepo, NestJS + Prisma + PostgreSQL, Next.js + Tailwind, Biome) — asks name, location and ports (checked free), installs, migrates, verifies |
+| `/cs-estimate <desc\|#issue\|--queue>` | Asks who executes it (orchestrator agents / team / compare), then an evidence-based estimate — one mode, t-shirt/points/PERT range, named adjustments, split-or-spike, calibration from merged PRs, critical path for parallel plans; `--post` comments + `size:` label |
 | `/cs-spec [what \| #issue]`         | Specification interview in rounds — design tree, decision check, contention map and parallel plan; lands as an issue the orchestrator can dispatch |
 | `/cs-feature <#issue\|desc> [--auto]` | Feature or bug fix from request to pull request — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR |
 | `/cs-orchestrator [start\|status\|next\|stop]` | Autonomous fleet — dispatches parallel worker sessions in git worktrees for ready issues, merges green PRs, refills slots |
@@ -190,6 +191,13 @@ All commands use the `cs-` prefix (code-sentinel) to avoid conflicts with built-
 /cs-spec "Users can export their data"
 /cs-spec
 
+# Estimate a task, an issue (posts comment + size label), or the whole ready queue
+/cs-estimate "Add Google OAuth login"
+/cs-estimate #57 --post            # asks: orchestrator, team or compare — then offers to queue it
+/cs-estimate #57 --fleet           # skip the question: estimate for the agent fleet
+/cs-estimate --queue
+/cs-estimate --calibrate
+
 # Implement a feature: plan → approval → issue → branch → PR
 /cs-feature "Add CSV export to the reports page"
 
@@ -329,6 +337,7 @@ skills/
   init/SKILL.md                         — /cs-init
   init/scaffold.sh                      — generator (placeholder substitution, refuses non-empty targets)
   init/template/                        — the fullstack monorepo template
+  estimate/SKILL.md                     — /cs-estimate
   spec/SKILL.md                         — /cs-spec
   feature/SKILL.md                      — /cs-feature
   worker/SKILL.md                       — /cs-worker
