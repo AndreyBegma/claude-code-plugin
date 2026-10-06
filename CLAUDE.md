@@ -2,49 +2,75 @@
 
 AI code guardian — catches security issues, dead code, and style violations. Reviews PRs and learns your team's conventions.
 
-All commands use the `ca-` prefix (code-sentinel) to avoid conflicts with built-in or other plugin commands.
+All commands use the `cs-` prefix (code-sentinel) to avoid conflicts with built-in or other plugin commands.
 
 ## Structure
 
 ```
 skills/
-  _shared/style-rules.md                — Shared style rules (referenced by code-review and pr-review)
-  _shared/confirmation-flow.md          — Shared confirmation UX patterns (AskUserQuestion selectors)
-  _shared/seo-references.md             — CTR benchmarks, meta tag patterns, structured data templates
-  security/SKILL.md                     — /ca-security
-  dead-code/SKILL.md                    — /ca-dead-code
-  code-review/SKILL.md                  — /ca-code-review
-  pr-review/SKILL.md                    — /ca-pr-review [AUTO]
-  pr-review-manual/SKILL.md             — /ca-pr-review-manual [MANUAL]
-  pr-prepare-merge/SKILL.md             — /ca-pr-prepare-merge [AUTO]
-  pr-prepare-merge-manual/SKILL.md      — /ca-pr-prepare-merge-manual [MANUAL]
-  debug/SKILL.md                        — /ca-debug
-  issue/SKILL.md                        — /ca-issue
-  perf/SKILL.md                         — /ca-perf
-  ux-review/SKILL.md                    — /ca-ux-review
-  seo-audit/SKILL.md                    — /ca-seo-audit
-  analytics/SKILL.md                    — /ca-analytics
+  _shared/style-rules.md                — Style rules reference (inlined into each skill)
+  _shared/confirmation-flow.md          — Confirmation UX patterns reference (inlined into each skill)
+  _shared/seo-references.md             — CTR benchmarks, meta tag patterns reference (inlined into each skill)
+  _shared/severity-levels.md            — Severity classification reference (inlined into pr-review)
+  security/SKILL.md                     — /cs-security
+  dead-code/SKILL.md                    — /cs-dead-code
+  review/SKILL.md                       — /cs-review
+  pr-review/SKILL.md                    — /cs-pr-review
+  pr-merge/SKILL.md                     — /cs-pr-merge
+  conflict/SKILL.md                     — /cs-conflict
+  debug/SKILL.md                        — /cs-debug
+  issue/SKILL.md                        — /cs-issue
+  perf/SKILL.md                         — /cs-perf
+  ux-review/SKILL.md                    — /cs-ux-review
+  seo/SKILL.md                          — /cs-seo
+  analytics/SKILL.md                    — /cs-analytics
+  history/SKILL.md                      — /cs-history
+  repo/SKILL.md                         — /cs-repo
+  ux-test/SKILL.md                      — /cs-ux-test
+  ux-test/scenario-template.md          — Scenario file template for users
+  ux-scenario/SKILL.md                  — /cs-ux-scenario
+  arch/SKILL.md                         — /cs-arch
+  unit-test/SKILL.md                    — /cs-unit-test
+  test/SKILL.md                         — /cs-test
+  init/SKILL.md                         — /cs-init
+  init/scaffold.sh, init/template/      — fullstack monorepo generator and template (dotfiles stored as _name)
+  estimate/SKILL.md                     — /cs-estimate
+  spec/SKILL.md                         — /cs-spec
+  feature/SKILL.md                      — /cs-feature
+  worker/SKILL.md                       — /cs-worker
+  orchestrator/SKILL.md                 — /cs-orchestrator
+  orchestrator/scripts/                 — dispatch.sh, watch.sh, fence.py, fence_test.py, launch pre-flight helpers
 ```
 
 ## Skills
 
-| Command                                          | Description                                                                                                                   |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `/ca-security`                                   | Security vulnerability scanner — OWASP Top 10, exposed secrets, injections, auth bypass                                       |
-| `/ca-dead-code`                                  | Dead code detector — unused packages, unreferenced files, orphaned exports. **High token usage** — pass a path to limit scope |
-| `/ca-code-review`                                | Local code review for style and correctness (no GitHub interaction)                                                           |
-| `/ca-pr-review <PR#>`                            | **[AUTO]** Review PR, post all comments automatically — CI-ready, no prompts                                                  |
-| `/ca-pr-review-manual <PR#>`                     | **[MANUAL]** Review PR with interactive confirmations — choose what to post, edit before sending                              |
-| `/ca-pr-prepare-merge <PR#>`                     | **[AUTO]** Extract rules from PR comments, create CLAUDE.md PR automatically — CI-ready                                       |
-| `/ca-pr-prepare-merge-manual <PR#>`              | **[MANUAL]** Extract rules with interactive confirmations                                                                     |
-| `/ca-debug <error\|#issue>`                      | Deep debugger — trace root cause from error, stack trace, symptom, or GitHub issue                                            |
-| `/ca-issue [description]`                        | Create GitHub issues from analysis findings — with duplicate check and user confirmation                                      |
-| `/ca-perf [path\|category]`                      | Performance analyzer — N+1 queries, re-renders, memory leaks, bundle size                                                     |
-| `/ca-ux-review [url\|focus]`                     | UX analysis — friction points, redesign proposals with before/after mockups                                                   |
-| `/ca-seo-audit <path> [--fix\|--url\|--compare]` | SEO analysis from GSC exports — quick wins, problems, meta tag fixes                                                          |
-| `/ca-analytics [path]`                           | Data-driven UX analysis from GA4/GSC — user flows, funnels, behavioral anomalies from real usage data                         |
-
-**Auto vs Manual:** Auto modes run without prompts (CI-ready). Manual modes offer interactive confirmations (choose items, edit before posting).
+| Command                                         | Description                                                                                                                   |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `/cs-security`                                  | Security vulnerability scanner — OWASP Top 10, exposed secrets, injections, auth bypass                                       |
+| `/cs-dead-code`                                 | Dead code detector — unused packages, unreferenced files, orphaned exports. **High token usage** — pass a path to limit scope |
+| `/cs-review`                                    | Local code review for style and correctness (no GitHub interaction)                                                           |
+| `/cs-pr-review <PR#>`                           | Review PR, post all comments automatically — CI-ready, no prompts                                                             |
+| `/cs-pr-merge <PR#>`                            | Extract rules from PR comments, create CLAUDE.md PR automatically — CI-ready                                                  |
+| `/cs-conflict [PR#]`                            | Resolve merge conflicts — auto-resolves obvious conflicts (imports, formatting), interactive resolution for ambiguous ones     |
+| `/cs-debug <error\|#issue>`                     | Deep debugger — trace root cause from error, stack trace, symptom, or GitHub issue                                            |
+| `/cs-issue [description] [--auto] [--ready]`    | Create GitHub issues from findings or requests — duplicate check, user confirmation or `--auto`; `--ready` queues for `/cs-orchestrator` |
+| `/cs-init [name] [dir]`                          | Scaffold a fullstack monorepo (Bun/Turbo, NestJS + Prisma + Postgres, Next.js + Tailwind, Biome) — interview for name, location, ports; verified build |
+| `/cs-estimate <desc\|#issue\|--queue> [--post]`  | Asks executor (orchestrator / team / compare), then evidence-based estimate — one mode, ranges with named adjustments, split-or-spike, calibration from merged PRs, critical path for parallel plans |
+| `/cs-spec [what\|#issue]`                        | Specification interview — design tree in rounds, decision check, contention map, parallel plan; lands as an issue for `/cs-orchestrator` |
+| `/cs-feature <#issue\|desc> [--auto] [--worker]` | Feature or bug fix from request to PR — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR              |
+| `/cs-orchestrator [start\|status\|next\|stop]`   | Autonomous fleet — parallel worker sessions in git worktrees for `cs:ready` issues, auto-merge green PRs, refill slots        |
+| `/cs-worker <brief>`                             | Worker session launched by `/cs-orchestrator` — one issue, one worktree, ownership fence, never merges                        |
+| `/cs-perf [path\|category]`                     | Performance analyzer — N+1 queries, re-renders, memory leaks, bundle size                                                     |
+| `/cs-ux-review [url\|focus]`                    | UX analysis — friction points, redesign proposals with before/after mockups                                                   |
+| `/cs-seo <path> [--fix\|--url\|--compare]`      | SEO analysis from GSC exports — quick wins, problems, meta tag fixes                                                          |
+| `/cs-analytics [path]`                          | Critical data-driven UX & code analysis from GA4/GSC — saves technical + client reports to `.claude/analytics-result/`        |
+| `/cs-history`                                   | Project retrospective — PR history mapped to role portals, weighted effort distribution, product timeline                     |
+| `/cs-repo`                                      | Product completeness audit — per-role page inventory, functional vs visual, end-to-end data flow tracing                     |
+| `/cs-ux-test <N\|name>`                          | Scenario-based UI/UX testing — execute user scenarios via browser, capture screenshots, verify results, report issues         |
+| `/cs-ux-scenario [PR#\|description]`            | Generate UX test scenarios from PR, branch diff, or description — saves ready files for `/cs-ux-test`                        |
+| `/cs-arch [path\|--audit]`                      | Architecture consistency — checks if new code follows project patterns, or audits whole project for drift and proposes unification |
+| `/cs-unit-test [PR#\|branch\|commit]`           | Retrospective TDD unit test writer — analyzes a fix and writes a unit test that would have caught the bug, or explains why it's not possible |
+| `/cs-test [PR#\|branch\|commit]`                | Retrospective TDD test writer — classifies the fix (unit/integration/not testable) and writes the appropriate test that would have caught the bug |
 
 ## Configuration
 
@@ -52,22 +78,34 @@ Reads `.code-analyzer-config.json` in the project root for exclusions and per-sk
 
 ## Recommended MCP Servers
 
-| MCP Server     | Install                                                                        | Used By                       |
-| -------------- | ------------------------------------------------------------------------------ | ----------------------------- |
-| **Puppeteer**  | `claude mcp add puppeteer -- npx -y @modelcontextprotocol/server-puppeteer`    | ux-review, seo-audit, analytics |
-| **Biome**      | Not yet available on npm — see [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017) | code-review, pr-review, debug |
-| **TypeScript** | Not yet available on npm — use VS Code `getDiagnostics` as fallback            | dead-code, perf, debug        |
+| MCP Server     | Install                                                                        | Used By                    |
+| -------------- | ------------------------------------------------------------------------------ | -------------------------- |
+| **Puppeteer**  | `claude mcp add puppeteer --scope user -- npx -y @modelcontextprotocol/server-puppeteer`    | ux-review, ux-test, seo, analytics |
+| **Biome**      | Not yet available on npm — see [biomejs/biome#6017](https://github.com/biomejs/biome/discussions/6017) | review, pr-review, debug |
+| **TypeScript** | Not yet available on npm — use VS Code `getDiagnostics` as fallback            | dead-code, perf, debug     |
 
 Skills auto-detect missing MCPs and offer to install via `AskUserQuestion`. If skipped, analysis continues with reduced accuracy.
 
 ## Conventions
 
 - Analysis skills are **read-only** — they never modify the target project
-- Action skills (`ca-pr-prepare-merge`) may create branches/PRs but only modify instruction files (CLAUDE.md)
-- All commands use the `ca-` prefix to avoid naming conflicts
+- Output skills (`cs-history`) write to `docs/` but never modify source code
+- Report skills (`cs-analytics`) write to `.claude/analytics-result/` — timestamped folders with technical + client reports
+- Action skills (`cs-pr-merge`) may create branches/PRs but only modify instruction files (CLAUDE.md)
+- Conflict resolution (`cs-conflict`) modifies conflicted files to resolve merge conflicts — interactive only, no auto-only variant
+- Unit test writer (`cs-unit-test`) writes test files only — never modifies source code; interactive with preview before writing
+- Test writer (`cs-test`) writes unit or integration test files only — never modifies source code; classifies fix type automatically; interactive with preview before writing
+- All commands use the `cs-` prefix to avoid naming conflicts
 - `node_modules`, `dist`, `.next`, `build` are **always** excluded across all skills
 - All exclusions respect `.code-analyzer-config.json`
-- Each skill runs **one sequential analysis** (single-agent, not parallel)
+- Each skill runs **one sequential analysis** (single-agent, not parallel) — except `cs-orchestrator`, which dispatches parallel worker sessions by design
+- Init skill (`cs-init`) creates a **new** project only — refuses non-empty directories; template changes must be verified by generating a throwaway project (install, check, test, build, db:setup)
+- Estimate skill (`cs-estimate`) asks first who executes the work (orchestrator / team / compare); never starts the orchestrator itself — it offers to queue (`cs:ready`) and names the command. Read-only except `--post` (issue comment with a `<!-- cs-estimate -->` marker + `size:` label, confirmed unless `--auto`)
+- Spec skill (`cs-spec`) writes documents only (issue body, optional spec file / decision record via a docs PR) — never product code, never dispatches; asks before publishing
+- Feature skill (`cs-feature`) modifies source code — only after an approved plan (or a posted plan under `--auto`), always on a feature branch, never merges
+- Orchestrator (`cs-orchestrator`) never writes product code; it creates worktrees/branches, labels issues, and merges green PRs (unless `orchestrator.autoMerge` is `false`). Workers (`cs-worker`) are fenced by `orchestrator/scripts/fence.py` and never merge
+- Skill-bundled scripts are referenced as `${CLAUDE_SKILL_DIR}/scripts/...`; run `python3 skills/orchestrator/scripts/fence_test.py` after changing `fence.py`
 - Prioritizes HIGH/CRITICAL findings; lower-severity issues included where appropriate
 - Respects `$ARGUMENTS` to analyze specific directories
-- All user confirmations use **interactive selectors** (`AskUserQuestion`), not text prompts — see `_shared/confirmation-flow.md`
+- All user confirmations use **interactive selectors** (`AskUserQuestion`), not text prompts — patterns inlined into each skill
+- All skills are **self-contained** — no external `_shared/` file reads needed at runtime. `_shared/` files exist as reference only

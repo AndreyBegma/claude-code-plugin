@@ -1,344 +1,182 @@
 ---
-name: ca-pr-review
+name: cs-pr-review
 description: Review a PR (or current branch if no PR number given) and post comments on GitHub
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, mcp__biome__*
 ---
 
-# PR Review
+# PR Review (Auto)
 
 You are a senior code reviewer. Review a PR and post findings as inline comments on GitHub.
 
+**AUTO mode** — no user prompts, posts all findings automatically. CI-ready.
+
 ## Inputs
 
-`$ARGUMENTS` — PR number (optional). If not provided, review the current branch locally.
+`$ARGUMENTS` — PR number (optional), and optional `--repo owner/repo` flag.
+
+Parse `$ARGUMENTS`: first numeric token = PR number. `--repo` next token = `owner/repo`. If `--repo` given, append to all `gh` commands. For `gh api`, substitute into URL path.
 
 ## Flow: PR Number Given
 
 ### Step 1: Gather Context
 
-Run these commands **one at a time** (do not chain with `&&` or `|`):
+1. **Repo info:** `gh repo view --json owner,name` (skip if `--repo` given)
+2. **PR metadata:** `gh pr view PR_NUMBER --json title,body,author,state,headRefOid,baseRefName,headRefName [--repo]` → save `headRefOid` as `COMMIT_SHA`
+3. **Diff:** `gh pr diff PR_NUMBER [--repo]`
 
-1. Get repo info:
+### Step 1.1: Assess Diff Size
 
-   ```bash
-   gh repo view --json owner,name
-   ```
+| Size | Strategy |
+|------|----------|
+| **Small** (≤ 500 lines, ≤ 10 files) | All files in one pass |
+| **Medium** (500–2000 lines, 10–30 files) | File-by-file: security → business logic → tests → config |
+| **Large** (> 2000 lines or > 30 files) | Triage by risk (see below) |
 
-   Parse the JSON response to extract `owner.login` and `name`.
-
-2. Get PR metadata:
-
-   ```bash
-   gh pr view $ARGUMENTS --json title,body,author,state,headRefOid,baseRefName,headRefName
-   ```
-
-   Save `headRefOid` as `COMMIT_SHA` for posting comments later.
-
-3. Get the diff:
-   ```bash
-   gh pr diff $ARGUMENTS
-   ```
+**Large diff triage:**
+1. `gh pr view PR_NUMBER --json files --jq '.files[].path' [--repo]`
+2. **HIGH risk** (routes, controllers, services, auth, DB migrations) → full depth + source context
+3. **MEDIUM risk** (utils, helpers, components) → diff only
+4. **LOW risk** (tests, types, config, docs) → skim
+5. Mark review as **partial**, note file counts per tier.
 
 ### Step 1.5: Check CI Status
 
-Before reviewing code, check if CI has passed:
-
-1. Get CI run status for the PR branch:
-
-   ```bash
-   gh pr checks $ARGUMENTS
-   ```
-
-2. If any check **failed**:
-   - Show the user which checks failed
-   - Automatically view the failed run logs:
-     ```bash
-     gh run view RUN_ID --log-failed
-     ```
-   - Show the summary and continue to review:
-
-     ```
-     ⚠️ CI failed on this PR:
-     - ❌ build — failed
-     - ❌ test — failed
-     - ✅ lint — passed
-     ```
-
-   Then proceed to Step 2.
-
-3. If CI is still **running**, show status and proceed to review without waiting:
-
-   ```
-   ⏳ CI is still running (build: in_progress, test: queued) — proceeding with review.
-   ```
-
-4. If all checks **passed** — proceed silently to Step 2.
+Run `gh pr checks PR_NUMBER [--repo]`.
+- **Failed:** auto-view logs (`gh run view RUN_ID --log-failed`), show summary, continue
+- Otherwise: proceed
 
 ### Step 2: Read Project Rules
 
-Read `CLAUDE.md` for project conventions (highest priority). Also scan `.claude/skills/**/*.md` for project-local patterns.
-
-**Priority**: `CLAUDE.md` > project skill conventions > general best practices.
+Read `CLAUDE.md` (highest priority) and `.claude/skills/**/*.md`.
 
 ### Step 2.5: Check Biome MCP
 
-Check if Biome MCP is available. Biome provides structured lint diagnostics for more accurate review.
-
-If Biome MCP is **not available**, output a warning and continue without it:
-
-```
-⚠️ Biome MCP not available. Lint analysis will be less accurate.
-   Note: Biome MCP package is not yet available on npm. See https://github.com/biomejs/biome/discussions/6017
-```
+If unavailable: `⚠️ Biome MCP not available. Lint analysis will be less accurate.`
 
 ### Step 2.6: Check Existing PR Comments
 
-Before reviewing, check if there are existing review comments from previous reviews:
+1. `gh api repos/OWNER/REPO/pulls/PR_NUMBER/comments`
+2. **Dedup set:** for each comment (anyone, including self), if issue is still in diff → `file:line → desc`. Skip matching findings in Step 3.
+3. **Resolved:** issue no longer in diff + no reply → auto-reply "✅ Fixed" and resolve the thread:
 
-1. Get all existing review comments:
-
+   First, get review threads with their node IDs:
    ```bash
-   gh api repos/OWNER/REPO/pulls/PR_NUMBER/comments
+   gh api graphql -f query='query { repository(owner:"OWNER",name:"REPO") { pullRequest(number:PR_NUMBER) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { id databaseId path line body } } } } } } }'
    ```
 
-2. For each comment, check:
-   - Is the issue mentioned in the comment still present in the current diff?
-   - Does the comment already have a reply?
+   For each resolved issue, match it to a thread by `path` + `line` + comment content. Then:
 
-3. If an issue from a previous comment is **now fixed** and has **no reply**:
-   - Add to a separate list: "Resolved issues from previous reviews"
-
-4. Show resolved issues, then automatically reply "✅ Fixed" to all of them:
-
-   ```
-   Previously reported issues now fixed:
-
-   1. Comment by @reviewer on user.service.ts:45 — "Missing null check" → FIXED
-   2. Comment by @reviewer on auth.ts:12 — "Missing validation" → FIXED
-   ```
-
-5. For each resolved comment, post the reply automatically:
-
+   a) Reply "✅ Fixed":
    ```bash
    gh api repos/OWNER/REPO/pulls/comments/COMMENT_ID/replies --method POST -f body="✅ Fixed"
    ```
 
-   After posting each reply, show immediate feedback:
-
-   ```
-   ✅ Replied "Fixed" to @reviewer on user.service.ts:45
-      https://github.com/acme/backend/pull/18#discussion_r1234567890
+   b) Resolve the thread:
+   ```bash
+   gh api graphql -f query='mutation { resolveReviewThread(input:{threadId:"THREAD_NODE_ID"}) { thread { isResolved } } }'
    ```
 
-   Track all replies for the final summary.
+   Show: `✅ Replied "Fixed" + resolved thread — @reviewer on file:line`
 
 ### Step 3: Review the Diff
 
-Analyze every changed file in the diff. Check for:
+Check dedup set first — skip already-covered issues. If same issue moved to new line, post new comment noting it replaces previous.
 
-#### Correctness
+Analyze every changed file:
 
-- Logic errors, missing edge cases, off-by-one errors
-- Broken control flow (unreachable code, missing returns)
-- Incorrect async/await usage (missing await, unhandled promises)
+**Correctness:** logic errors, missing edge cases, incorrect async
+**Security:** OWASP Top 10, hardcoded secrets, missing input validation, auth bypass
+**Style** (CLAUDE.md rules first): **React/Next.js:** no "missing React import" reports, `useCallback`/`useMemo` for callbacks/objects, direct exports, fragments over divs. **NestJS:** typed EntityId, minimal module imports/exports.
+**Performance:** N+1 queries, `.filter().map()` → single pass, O(n²) where Map/Set lookup is possible, redundant batchable API/DB calls
+**Simplification:** unnecessary variables/wrappers, overly complex conditions that can be simplified, code that duplicates logic already present elsewhere in the PR, over-engineering (abstractions for single use), verbose patterns with simpler idiomatic alternatives
+**Patterns:** missing error handling on I/O, unused imports/variables introduced by the change
 
-#### Security
+#### Severity Levels
 
-- Injection vulnerabilities (SQL, NoSQL, command, template)
-- Hardcoded secrets or credentials
-- Missing input validation on user-facing endpoints
-- Auth bypass, OWASP Top 10 (reference the security skill categories)
+| Severity | Criteria |
+|----------|----------|
+| **CRITICAL** | Must fix. Causes harm in production |
+| **HIGH** | Should fix. Breaks under realistic conditions |
+| **MEDIUM** | Improve. Works but fragile/slow |
+| **LOW** | Nice to fix. Style/consistency only |
 
-#### Style (defer to CLAUDE.md rules first, then these defaults)
+When in doubt, prefer higher severity.
 
-- Naming conventions (consistency within the project)
-- Prefer const over let unless reassignment is necessary
-- Always prefer destructuring
-- Early returns over deep nesting (invert conditions, return early)
-- Braces on all control flow statements — never single-line if statements
-- No type assertions (as, non-null assertion) without justification
-- No `any` types without justification
-- Import ordering — group by external/internal, alphabetize within groups
+### Step 4: Read Source Context
 
-Apply rules from `../_shared/style-rules.md`. **CLAUDE.md rules take priority.**
-
-#### Performance
-
-- N+1 query patterns
-- Missing indexes, unnecessary re-renders
-
-#### Patterns
-
-- Missing error handling on I/O operations
-- Unused imports or variables introduced by the change
-- Dead code introduced by the change
-
-Assign severity per `../_shared/severity-levels.md` (CRITICAL / HIGH / MEDIUM / LOW). Show the numbered list, then automatically post ALL findings as comments on GitHub:
-
-```
-Review findings:
-
-1. [CRITICAL] SQL injection in UserService.ts:45
-2. [HIGH] Missing auth guard on admin.controller.ts:23
-3. [MEDIUM] Unused import in utils.ts:1
-4. [LOW] Naming: prefer camelCase in config.ts:12
-
-Posting all 4 comments to GitHub...
-```
+For files with findings, read source to verify. For CRITICAL/HIGH, check related files (e.g., controller calling changed service). Upgrade, drop, or add findings based on context.
 
 ### Step 5: Post Comments on GitHub
 
-For each issue, automatically post the comment to GitHub.
+Show numbered list, then auto-post ALL:
 
-**Command template** (substitute OWNER, REPO, COMMIT_SHA, and issue details):
-
-```bash
-gh api repos/OWNER/REPO/pulls/PR_NUMBER/comments --method POST -f body="**[SEVERITY]** description" -f commit_id="COMMIT_SHA" -f path="file/path.ts" -F line=LINE_NUMBER -f side="RIGHT"
+```
+Review findings:
+1. [CRITICAL] SQL injection in UserService.ts:45
+2. [HIGH] Missing auth guard on admin.controller.ts:23
+Posting all 2 comments...
 ```
 
-**Example with real values:**
-
+**Command:**
 ```bash
-gh api repos/acme/backend/pulls/18/comments --method POST -f body="**[HIGH]** Missing null check" -f commit_id="abc123def" -f path="src/user.service.ts" -F line=45 -f side="RIGHT"
+gh api repos/OWNER/REPO/pulls/PR_NUMBER/comments --method POST \
+  -f body="BODY" -f commit_id="COMMIT_SHA" -f path="FILE" -F line=LINE -f side="RIGHT"
 ```
 
-**After posting each comment:**
+Multi-line: add `-F start_line=START`.
 
-1. Parse the JSON response from `gh api` to extract `id` and `html_url`
-2. Show immediate feedback to the user:
+**Line rules:** use actual file line numbers (not diff position). `side="RIGHT"` = new version. Context-only line → nearest changed line. 422 error → retry nearest changed line.
 
-   ```
-   ✅ Posted: user.service.ts:45 — Missing null check
-      https://github.com/acme/backend/pull/18#discussion_r1234567890
-   ```
+**After each post:** show `✅ Posted: file:line — desc` with URL. On failure: retry once. If still failing: `❌ Failed: file:line — reason`, continue to next.
 
-3. If the command fails, show the error:
+**Always include a ` ```suggestion ` block** when a concrete fix exists:
 
-   ```
-   ❌ Failed: user.service.ts:45 — "line 45 does not belong to the diff"
-      Retrying on nearest changed line...
-   ```
+```
+**[SEVERITY]** Description.
 
-4. Track all posted comments with their URLs for the final summary.
+\`\`\`suggestion
+corrected code
+\`\`\`
+```
 
-**CRITICAL line number rules:**
-
-- Use the **actual file line number** from the modified file, NOT the position in the diff
-- `side="RIGHT"` means the new/modified version of the file
-- To find line numbers: look at the `gh pr diff` output — the `+` lines show the new file's line numbers on the right side
-- If a line is not part of the diff (context-only line), place the comment on the nearest changed line instead and reference the actual location in the comment body
-- If the `gh api` call returns a 422 error ("line could not be resolved"), retry on the nearest changed line
+Skip suggestion only for architectural concerns or questions about intent. Multi-line: use `start_line` + `line` params.
 
 ### Step 6: Add Label
 
-Run these commands **one at a time**:
-
-1. Create the label if it doesn't exist:
-
-   ```bash
-   gh label create "claude-reviewed" --description "Reviewed by Claude" --color "6f42c1" --force
-   ```
-
-2. Add label to the PR:
-   ```bash
-   gh pr edit $ARGUMENTS --add-label "claude-reviewed"
-   ```
-
-If the label command fails (e.g., due to project settings), note it in the output but do not treat it as an error.
+1. `gh label create "claude-reviewed" --description "Reviewed by Claude" --color "6f42c1" --force [--repo]`
+2. `gh pr edit PR_NUMBER --add-label "claude-reviewed" [--repo]`
 
 ## Flow: No PR Number
 
-When no `$ARGUMENTS` is provided, review the current branch locally.
-
-Detect the base branch:
-
-1. Check for upstream tracking branch:
-
-   ```bash
-   git rev-parse --abbrev-ref @{upstream}
-   ```
-
-   If this fails, check which default branch exists:
-
-   ```bash
-   git show-ref --verify --quiet refs/heads/main
-   ```
-
-   If `main` exists, use it. Otherwise use `develop`. If the upstream command returns something like `origin/main`, strip the `origin/` prefix.
-
-2. Get the diff against base:
-
-   ```bash
-   git diff develop...HEAD
-   ```
-
-   (Replace `develop` with the detected base branch)
-
-3. Get commit log:
-   ```bash
-   git log develop..HEAD --oneline
-   ```
-
-Review changes using the same criteria. Do NOT post GitHub comments for local-only review.
+1. `git rev-parse --abbrev-ref @{upstream}` → if fails, use `main` (or `develop`)
+2. `git diff BASE...HEAD` + `git log BASE..HEAD --oneline`
+3. Review with same criteria. Do **NOT** post GitHub comments.
 
 ## Output Format
 
 ```
 ## Review: [APPROVE / REQUEST CHANGES]
 
-**PR:** #18 — Feature: Add user authentication
-**Branch:** feature/auth → main
-**CI Status:** ✅ All checks passed
+**PR:** #18 — Title
+**Branch:** feature/auth → main | **CI:** ✅ Passed
 
-### Posted Comments (3)
-
+### Posted Comments (N)
 | # | File | Line | Severity | Issue | Link |
 |---|------|------|----------|-------|------|
-| 1 | user.service.ts | 45 | CRITICAL | SQL injection | [view](URL) |
-| 2 | admin.controller.ts | 23 | HIGH | Missing auth guard | [view](URL) |
-| 3 | utils.ts | 1 | MEDIUM | Unused import | [view](URL) |
 
-### Resolved from Previous Reviews (2)
-- ✅ Replied "Fixed" to @reviewer on auth.ts:12 — [view](URL)
-- ✅ Replied "Fixed" to @reviewer on config.ts:5 — [view](URL)
+### Resolved from Previous Reviews (N)
+- ✅ Replied "Fixed" to @reviewer on file:line — [view](URL)
 
-### Questions
-- [anything unclear about intent or requirements]
+### Questions (omit if none)
+- [anything unclear]
 
 ### Summary
-[1-2 sentences on overall quality and what needs attention]
+[1-2 sentences]
 ```
 
-**For local-only review (no PR number):**
-
-```
-## Review: [APPROVE / REQUEST CHANGES]
-
-**Branch:** feature/auth (local, not pushed)
-**Base:** main
-
-### Issues Found (4)
-
-| # | File | Line | Severity | Issue |
-|---|------|------|----------|-------|
-| 1 | user.service.ts | 45 | CRITICAL | SQL injection |
-| 2 | admin.controller.ts | 23 | HIGH | Missing auth guard |
-| 3 | utils.ts | 1 | MEDIUM | Unused import |
-| 4 | config.ts | 12 | LOW | Naming: prefer camelCase |
-
-### Summary
-[1-2 sentences on overall quality and what needs attention]
-
-💡 Run `/ca-pr-review <PR_NUMBER>` after creating a PR to post these as GitHub comments.
-```
+Local-only: same but without Links column + `💡 Run /cs-pr-review <PR#> to post as comments.`
 
 ## Important
 
-- **Do review test files** — unlike security/dead-code skills, PR review includes tests since they are part of the changeset
-- **Always post comments on GitHub** when reviewing a PR — do not just output text
-- Review ALL changed files, not just the first few
-- If the diff is very large, prioritize CRITICAL/HIGH issues and note that the review was partial
-- Do not comment on unchanged code (context lines) unless it directly relates to a changed line
-- Group related issues into a single comment when they affect the same line
-- Be specific: include the problematic code snippet and a suggested fix in the comment body
+- Group related issues on the same line into one comment.

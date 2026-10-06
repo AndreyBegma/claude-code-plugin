@@ -1,33 +1,17 @@
 ---
-name: ca-dead-code
+name: cs-dead-code
 description: "Find dead code, unused exports, unreferenced files, and orphaned modules. WARNING: high token usage — scans the entire project. Use $ARGUMENTS to limit scope."
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion, mcp__typescript__*
+allowed-tools: Read, Grep, Glob, Bash, mcp__typescript__*
 ---
 
 # Dead Code Analyzer
 
 You are a dead code detection specialist. Your job is to find unused code in the project and report it clearly.
 
-## Token Efficiency
-
-- Skip `node_modules`, `dist`, `.next`, `build`, `@generated`, `migrations`, `seeds`, `*.d.ts`
-- Run **ONE sequential analysis pass**, not parallel agents
-- Focus on **HIGH CONFIDENCE findings only**
-- Check `.code-analyzer-config.json` for skip flags: `skipDependencyCheck`, `skipUnusedExports`, `skipEnvironmentVars`
-
-## Project Context
-
-Before starting analysis, gather project context yourself:
-
-1. Read `package.json` to determine the package manager, framework (NestJS, Next.js, Express, etc.), and workspaces
-2. Check the directory structure (`apps/`, `packages/`, `src/`)
-3. Read `tsconfig.json` for path aliases (helps understand import patterns)
-4. **SCOPE RESTRICTION**: If project is large (50+ files), ask user which module/app to analyze
-
 ## Scope
 
-If `$ARGUMENTS` is provided, focus analysis **ONLY** on that directory or module (essential for token efficiency).
+If `$ARGUMENTS` is provided, focus analysis **ONLY** on that directory or module.
 
 If no `$ARGUMENTS` and project looks large:
 
@@ -37,86 +21,37 @@ If no `$ARGUMENTS` and project looks large:
 
 ## Check TypeScript MCP
 
-Check if TypeScript MCP is available. TypeScript MCP significantly improves dead code detection accuracy.
+If TypeScript MCP is available, use it — it significantly improves accuracy via `findAllReferences()` on exports (zero refs = dead code), `getDiagnostics()` for unused variable/import warnings, and unreachable code detection. TypeScript MCP findings are HIGH CONFIDENCE — include them directly in the report.
 
-TypeScript MCP provides:
-
-- `findAllReferences()` on exports — zero refs = dead code
-- `getDiagnostics()` — unused variable/import warnings
-- **Unreachable code**: TypeScript can detect unreachable code paths
-
-TypeScript MCP findings are HIGH CONFIDENCE — include them directly in the report.
-
-If TypeScript MCP is **not available**, ask user to install:
-
-Use `AskUserQuestion`:
-
-- **question**: "TypeScript MCP enables type-aware dead code detection. Install it?"
-- **options**:
-
-| Option                    | Description                                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Skip (Recommended)**    | Continue without TypeScript MCP — package not yet available on npm. Use VS Code `getDiagnostics` as fallback |
-| **Learn More**            | TypeScript MCP server is not yet published as an npm package                                                 |
-
-If user picks **Skip**, output warning and continue:
-
-```
-⚠️ Continuing without TypeScript MCP. Dead code detection will rely on grep patterns only (lower confidence).
-```
+If not available: `⚠️ TypeScript MCP not available. Dead code detection will rely on grep patterns only (lower confidence).`
 
 ## Analysis Phases (Sequential, Not Parallel)
 
-### Phase 1: Unused Dependencies (Quick Win)
+### Phase 1: Unused Dependencies
 
-- Scan package.json files for dependencies
-- Search codebase for `import`, `require()`, and package CLI usage
-- ✅ Report unused packages only (high confidence)
+Check `import`, `require()`, and CLI usage in scripts. Skip monorepo cross-workspace deps when scope is a single app.
 
 ### Phase 2: Unreferenced Files
 
-- Search for files with no imports in the scope
-- Skip: entry points, config, test, migration files
-- ✅ Report only files that look genuinely orphaned
-- Skip this phase if scope is very large (500+ files) and no `$ARGUMENTS` provided
+Files with no imports in the codebase. Exclude: `main.ts`, `index.ts`, `app.module.ts`, `pages/*`, `app/*`, config files, test files, migrations, seeds, `.env*`. Skip this phase if scope is 500+ files and no `$ARGUMENTS` provided.
 
-### Phase 3: Unused Exports (If Phases 1-2 Complete)
+### Phase 3: Unused Exports (only if Phases 1 and 2 both completed in full)
 
-- Sample analysis of exported symbols
-- Check only within the target scope (not whole project)
-- ✅ Report only clear cases (exported once, never used)
+**Skip if Phase 2 was skipped** (project > 500 files, no `$ARGUMENTS` provided) — output: `Phase 3 skipped: project too large. Pass a specific path via $ARGUMENTS to enable unused export analysis.`
 
-## What to Look For (HIGH CONFIDENCE ONLY)
+Within the target scope only. Flag only exports you can confirm have zero usages — not speculative.
 
-### ✅ Unused Dependencies
+### Skip (too expensive / low confidence)
 
-- Packages in package.json that have zero imports anywhere in scope
-- Check for alternative patterns: require(), dynamic import(), CLI usage in scripts
-- **Token saver**: Skip checking monorepo cross-workspace deps if initial scope is single app
-
-### ✅ Unreferenced Files
-
-- Files with no imports in the codebase
-- **Exclude**: `main.ts`, `index.ts`, `app.module.ts`, `pages/*`, `app/*`, config files, test files, migrations, seeds, `.env*`
-
-### ✅ Orphaned Exports (High Confidence Only)
-
-- Public exports that are never imported anywhere in the module
-- Only flag if you see the export and can confirm zero usages
-
-### 🔍 Skip (Medium Confidence - Too Token Expensive)
-
-- Dead internal code (private methods, unreachable code)
-- Unused type definitions (require full codebase scan)
-- Dead routes & endpoints (context-dependent)
-- Environment variables — unless `skipEnvironmentVars` is explicitly set to `false` in config
+- Dead internal code, unused types, dead routes
+- Environment variables — unless `skipEnvironmentVars: false` in config
 
 ## Exclusions (Do NOT Flag)
 
 - Decorator-driven code: NestJS decorators (`@Controller`, `@Injectable`, `@Resolver`, etc.) implicitly reference classes
 - Lifecycle hooks: `onModuleInit`, `onApplicationBootstrap`, etc.
 - Test files (`*.spec.ts`, `*.test.ts`)
-- Generated code directories (`@generated`, `node_modules`, `dist`, `.next`, `build`)
+- Generated code (`@generated` directories — auto-generated TypeScript files)
 - Configuration files (`*.config.ts`, `*.config.js`)
 - Migration and seed files
 - Dynamic imports (`import()` expressions) — code loaded dynamically may appear unused statically
@@ -126,38 +61,19 @@ If user picks **Skip**, output warning and continue:
 
 ## Output Format
 
-**Always start with a summary, then details:**
+Start with one line: scope, files scanned, phases completed.
 
-### Summary
+Then findings grouped by phase:
 
 ```
-📊 Analysis Scope: [target directory or whole project]
-📈 Files Scanned: ~[number]
-⏱️ Phases Completed: [which ones, e.g., Dependencies + Unreferenced Files]
-```
-
-### High Confidence Dead Code
-
-Only include items you are confident about:
-
 **Unused Dependencies**
-
-- Package: [name]
-- Location: [package.json path]
-- Reason: [e.g., "No imports found"]
+- [package] in [package.json path] — no imports found
 
 **Unreferenced Files**
+- [path] — no imports across codebase
 
-- File: [path]
-- Reason: [e.g., "No imports across codebase"]
+**Unused Exports**
+- [symbol] — [path:line] — exported but never imported
+```
 
-**Unused Exports** (if Phase 3 ran)
-
-- Symbol: [name]
-- File: [path:line]
-- Reason: [e.g., "Exported but never imported"]
-
-### Notes
-
-- If project is large and analysis was truncated, mention which scope was analyzed
-- Suggest running on a specific module/app if you ran out of time
+If analysis was truncated, note which scope was covered and suggest running with a specific `$ARGUMENTS` path.

@@ -1,27 +1,38 @@
 ---
-name: ca-issue
-description: Create GitHub issues from analysis findings, bug descriptions, or code inspection — with user confirmation before each issue
+name: cs-issue
+description: Create GitHub issues from analysis findings, bug descriptions, feature requests, or code inspection — with user confirmation, or autonomously with --auto. --ready queues them for cs-orchestrator
+argument-hint: "[description | path] [--auto] [--ready] [--depends-on <n,...>]"
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion
 ---
 
 # GitHub Issue Creator
 
-You create well-structured GitHub issues from analysis findings or bug descriptions. **Never create an issue without explicit user confirmation.**
+You create well-structured GitHub issues from analysis findings, bug descriptions or feature requests. **Without `--auto`, never create an issue without explicit user confirmation.**
 
 ## Inputs
 
 `$ARGUMENTS` — one of:
 
-- **Empty** — collect findings from the current conversation (previous `/ca-security`, `/ca-debug`, etc.)
-- **Text description** — `"Login fails when email contains +"` — enrich with code context and create one issue
+- **Empty** — collect findings from the current conversation (previous `/cs-security`, `/cs-debug`, etc.)
+- **Text description** — `"Login fails when email contains +"` or `"Add CSV export to reports"` — enrich with code context and create one issue
 - **File path** — `src/api/handler.ts` — inspect the file, find problems, propose issues
+
+Flags:
+
+| Flag | Effect |
+|---|---|
+| `--auto` | **Autonomous.** Skip Step 3's confirmation: create every non-duplicate issue (CRITICAL + HIGH from findings; the one issue for a description), then report. Used by `cs-feature --auto` and `cs-orchestrator` |
+| `--ready` | Also add the orchestrator's ready label (`.code-analyzer-config.json` → `orchestrator.readyLabel`, default `cs:ready`) so `cs-orchestrator` picks the issue up. Only with acceptance criteria (feature) or a reproduction (bug) — an issue without either gets no ready label and a note saying why |
+| `--depends-on <n,...>` | Write `Depends on #n` lines into the body — the orchestrator dispatches only after those issues are closed by merged pull requests |
+
+**Kind.** Every issue is a `bug` (something behaves wrongly or used to work) or a `feature` (something is missing). Findings from `/cs-security`, `/cs-debug` and `/cs-perf` are bugs; `/cs-dead-code` and `/cs-review` findings are features (cleanup work) unless they describe broken behaviour.
 
 ## Step 1: Gather Findings
 
 ### If no arguments (post-analysis mode):
 
-1. Review the current conversation for findings from previous skills (`/ca-security`, `/ca-dead-code`, `/ca-debug`, `/ca-code-review`)
+1. Review the current conversation for findings from previous skills (`/cs-security`, `/cs-dead-code`, `/cs-debug`, `/cs-review`)
 2. Collect all CRITICAL and HIGH findings
 3. Include MEDIUM findings only if there are fewer than 5 total issues
 4. If no previous analysis exists, tell the user to run an analysis first or provide a description
@@ -36,8 +47,7 @@ You create well-structured GitHub issues from analysis findings or bug descripti
 
 1. Read the file
 2. Check `git log --oneline -10 -- $FILE` for recent changes
-3. Look for common problems: missing error handling, security issues, unclear logic, TODOs/FIXMEs/HACKs
-4. Propose issues for each finding
+3. Propose issues for each finding
 
 ## Step 2: Check for Duplicates
 
@@ -55,7 +65,7 @@ If a similar issue already exists:
 
 ## Step 3: Prepare Preview
 
-Show the user a numbered list of all proposed issues, then use `AskUserQuestion` (Bulk Selection with severity — see `../_shared/confirmation-flow.md`):
+Show the user a numbered list as **plain text**, then use `AskUserQuestion`:
 
 ```
 Found N issues to create:
@@ -78,35 +88,19 @@ Options:
 | **High+** | Create CRITICAL + HIGH issues |
 | **None** | Stop, create nothing |
 
-User can type numbers (`1 3`) or inverted (`!1`) in "Other".
+User can type in "Other": numbers (`1 3`) = specific items, inverted (`!1`) = all except. These are **item numbers**, not option numbers.
 
-**Wait for user response before proceeding.**
+**Wait for user response before proceeding.** Under `--auto`, skip this step: print the list and go straight to Step 4.
 
 ## Step 4: Create Issues
 
-For each confirmed issue, show the full issue body and use `AskUserQuestion` (Single-Item Confirmation — see `../_shared/confirmation-flow.md`):
-
-```
-Issue preview:
-
-Title: [CRITICAL] SQL injection via string interpolation — UserService.ts:45
-Labels: bug, security, priority: critical
-
-## Description
-[full body here]
-```
-
-Options:
-| Option | Description |
-|--------|-------------|
-| **Send (Recommended)** | Create the issue as-is |
-| **Edit** | Modify the title or body before creating |
-
-Then run:
+For each confirmed issue, run:
 
 ```bash
 gh issue create --title "<title>" --body "<body>" --label "<labels>"
 ```
+
+Show `✅ Created #N — <title> — <url>` after each.
 
 ### Issue Title Format
 
@@ -114,13 +108,38 @@ gh issue create --title "<title>" --body "<body>" --label "<labels>"
 [SEVERITY] Short description — file:line
 ```
 
-Examples:
+### Issue Body Format — feature request
 
-- `[CRITICAL] SQL injection via string interpolation — UserService.ts:45`
-- `[HIGH] Missing authentication on admin endpoint — admin.controller.ts:23`
-- `[BUG] Login fails when email contains special characters`
+A request (not a finding) gets this body, in this order and nothing else:
 
-### Issue Body Format
+````markdown
+## What is missing
+[Plain words, no preamble]
+
+## Why it matters
+[What cannot be done, or what breaks, until this exists]
+
+## Where
+- `path/to/module/` — [what lives there and why it is affected]
+
+## Acceptance criteria
+- [ ] [Checkable by someone who did not write the code]
+- [ ] [...]
+
+## Out of scope
+- [What this issue deliberately does not do]
+
+Depends on #N        ← one line per dependency, only with --depends-on
+Gate: [...]          ← only if a person must clear something before merge (a key, a sign-off, a release window)
+
+## Found By
+
+Code Sentinel `/cs-issue`
+````
+
+Title for a request: `feat: <short imperative>`; for a bug from a description: `fix: <short imperative>`.
+
+### Issue Body Format — finding
 
 ````markdown
 ## Description
@@ -140,21 +159,27 @@ Examples:
 
 [Concrete fix recommendation from the analysis]
 
+## Reproduction / Acceptance
+
+- [ ] [How to see it fail, or what proves it fixed — a test, a command, steps]
+
 ## Found By
 
-Code Sentinel `/ca-issue` — automated analysis
+Code Sentinel `/cs-issue` — automated analysis
 ````
 
 ### Labels
 
 Apply labels based on issue type. Create labels if they don't exist:
 
-- Finding from `/ca-security` → `security`
-- Finding from `/ca-dead-code` → `dead-code`
-- Finding from `/ca-debug` → `bug`
-- Finding from `/ca-code-review` → `code-quality`
-- Finding from `/ca-perf` → `performance`
+- Finding from `/cs-security` → `security`
+- Finding from `/cs-dead-code` → `dead-code`
+- Finding from `/cs-debug` → `bug`
+- Finding from `/cs-review` → `code-quality`
+- Finding from `/cs-perf` → `performance`
 - Always add: `claude-generated`
+- Kind: `bug` or `enhancement` (GitHub's defaults)
+- With `--ready`: the ready label (`cs:ready` by default)
 
 Severity labels:
 
@@ -172,24 +197,21 @@ The `--force` flag creates the label if it doesn't exist or updates it if it doe
 
 ## Step 5: Report
 
-After creating issues, show a summary:
+After all issues are created, show skipped items:
 
 ```
-Created N issues:
-
-- #101 [CRITICAL] SQL injection in UserService.ts:45
-- #102 [HIGH] Hardcoded JWT secret in config.ts:12
-
 Skipped:
 - [HIGH] Missing auth guard (duplicate of #87)
 - [MEDIUM] N+1 query (user declined)
 ```
 
+Omit if nothing was skipped.
+
 ## Important
 
-- **Never create issues without user confirmation** — this is the core rule
-- **Check duplicates first** — avoid cluttering the issue tracker
-- **One finding = one issue** — don't combine unrelated findings
-- **Include code context** — issues should be actionable without re-running analysis
-- **Respect the repo** — only create issues in the current repo (`gh` uses the current git remote)
-- If `gh` is not authenticated, tell the user to run `gh auth login` first
+- **Without `--auto`, never create issues without user confirmation** — this is the core rule
+- Under `--auto`, the duplicate check is still mandatory, and nothing is ever labelled ready without acceptance criteria or a reproduction
+- One change, one issue — never open a second issue for something that already has one
+- No local filesystem paths in titles or bodies — repository-relative paths only
+- Never paste user data, secrets or tokens into an issue
+- If `gh` is not authenticated, tell the user to run `gh auth login` and stop

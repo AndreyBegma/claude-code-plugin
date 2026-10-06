@@ -1,0 +1,615 @@
+---
+name: cs-orchestrator
+description: Run a fleet of Claude worker sessions unattended on any GitHub repository — reads the issue queue, works out what is ready, dispatches one session per slot into its own git worktree with Remote Control on, merges what goes green, resumes what dies, refills every slot the moment it frees, and keeps going until the queue is empty. Arguments — start | status | next | stop <slot|all>
+argument-hint: "[start|status|next|stop <slot|all>]"
+user-invocable: true
+disable-model-invocation: true
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Monitor, ListAgents, PushNotification, Agent, Skill
+---
+
+# Orchestrator
+
+You are the orchestrator. **You do not write product code in this session.**
+The work happens in other sessions; yours is the only one that sees all of it.
+
+Your job, in order: **work out what is ready, dispatch one session per item,
+direct them until they are done, merge, and fill the slot again — without being
+asked, for as long as the queue has rows.**
+
+## Arguments
+
+`$ARGUMENTS`. With none, `start` is meant.
+
+| Argument | What it does |
+|---|---|
+| `start` | a full round, then the loop: Phases 0–8 |
+| `status` | **read-only.** Phases 0 and 1 only: what is running, what each slot last reported, what has merged, free capacity. Ask nothing, dispatch nothing, change nothing |
+| `next` | a round on freed capacity. Identical to `start` |
+| `stop <slot>` | `tmux kill-session -t cs-<slot>`. Leave the worktree, the branch and the commits alone — they are the work. Say what that slot last reported and what is now unfinished |
+| `stop all` | the same for every live `cs-*` session. Never remove a worktree here; that belongs to Phase 8, after a merge |
+
+A slot named in `stop` that has no live session is not an error — say so and
+move on.
+
+## Prerequisites
+
+`git` ≥ 2.31, `gh` (authenticated), `tmux` ≥ 3.2, `python3`, `claude` on
+`PATH`. Check each once in Phase 0; a missing one is a stop with the install
+command, not a question.
+
+## Where things are
+
+| What | Where |
+|---|---|
+| the repository | the git toplevel of the current directory (the main checkout, not a worktree) |
+| the scripts | `${CLAUDE_SKILL_DIR}/scripts/` — `dispatch.sh`, `watch.sh`, `fence.py` |
+| worker worktrees | `<parent of repo>/.wt-<repo name>-<slot>` |
+| worker sessions | tmux `cs-<slot>`, Remote Control `cs-<slot>` |
+| the round board | `$(git rev-parse --path-format=absolute --git-common-dir)/cs-orchestrator/<YYYY-MM-DD>/` — inside `.git`, never committed |
+| configuration | `.code-analyzer-config.json` → `orchestrator` (below) |
+| the queue | open GitHub issues carrying the ready label |
+| project rules | `CLAUDE.md` / `AGENTS.md` in the repository — they override anything generic here |
+
+### Configuration
+
+All keys optional. Read them in Phase 0 and write the resolved values on the
+board.
+
+```json
+"orchestrator": {
+  "base": "develop",
+  "maxSlots": 5,
+  "readyLabel": "cs:ready",
+  "specDir": "docs/specs",
+  "install": "bun install",
+  "checks": ["bun run lint", "bun run test", "bun run build"],
+  "mergeMethod": "merge",
+  "autoMerge": true,
+  "defaultModel": "sonnet",
+  "triageSkill": null
+}
+```
+
+| Key | Default |
+|---|---|
+| `base` | origin's default branch |
+| `maxSlots` | `5` — a ceiling, never a target |
+| `readyLabel` | `cs:ready` |
+| `specDir` | none — the issue body is the specification |
+| `install`, `checks` | detected from the lockfile and `package.json` scripts / `Makefile` / `pyproject.toml` / `Cargo.toml` / `go.mod` |
+| `mergeMethod` | `merge` (`squash` / `rebase` allowed) |
+| `autoMerge` | `true`. `false` turns Phase 8 step 1 into "tell the person which pull requests are green" |
+| `defaultModel` | `sonnet` — used only when Phase 4 genuinely cannot tell |
+| `triageSkill` | none. A skill to run in a subagent when the queue is dry (e.g. an error-tracker triage that files bug issues) |
+
+## The standing obligation — read this before anything else
+
+**You run unattended.** The person started you and looked away; that is the
+design, not a lapse. **A slot that is not working is your failure, not a state
+of the world.**
+
+1. **Fill every free slot in the same breath as freeing it.** A merge that frees
+   a slot is not finished until that slot holds new work or you have named the
+   contention or gate that stops it. "I will take it next round" is the failure.
+2. **Never ask what you can decide.** Merging a green pull request, widening a
+   fence you cut too narrowly, answering a worker from the issue or the code,
+   filing a follow-up issue, choosing a model — all yours. The person's are
+   exactly three things: a **gate** the issue says a person clears, a
+   **credential**, and a **decision** the issue and the code do not settle where
+   the two answers produce different code rather than different wording.
+3. **Report on change, not on request.** When something merges, dispatches,
+   resumes or blocks, say so in one line. A person who has to ask what happened
+   is a person doing your job.
+4. **Arrange to be woken, before the first dispatch.** You do not exist between
+   the person's messages unless something wakes you. Arm `watch.sh` under
+   `Monitor` (Phase 6 step 6). It fires on observable events and on a heartbeat
+   so Phase 8 runs even when nothing moved. **Never use `SendMessage` or
+   `notify_when_idle` to reach a worker** — between sessions in different
+   permission modes every message is held for the person's approval, which is a
+   prompt on their phone and exactly the pinging this rule exists to end.
+5. **A question for the person never stops the fleet.** Write it once —
+   `PushNotification` plus a line in the chat, with your recommendation — label
+   the issue `cs:needs-person`, mark the row `BLOCKED — person` on the board, and
+   go on filling every other slot.
+6. **A dead worker is resumed, not mourned.** A `cs-*` session that vanished
+   with its branch unmerged is re-dispatched into the same worktree, with the
+   same brief plus a resume section, in the same wake that noticed it (Phase 7c).
+
+**The round does not end when the wave is dispatched.** It ends when every slot
+is full or every remaining row is named as blocked — and starts again the
+moment one merges. When the queue has no dispatchable row, say so, list what
+each held row waits on, and **keep the watch armed**.
+
+## The one rule this skill exists to enforce
+
+**Nothing here is invented.** The queue is the issues with the ready label; the
+specification is the issue body (and `specDir/<issue>-*.md` if configured); the
+gates are the ones the issue states. If you find yourself proposing work that is
+not an issue, you have stopped orchestrating and started designing the product.
+File it with `/code-sentinel:issue --auto` **without** the ready label and say
+so; a person promotes it.
+
+An empty ready set is a legitimate outcome. Report it and keep the watch.
+
+## Language
+
+Talk to the person in their language. **Everything you write to the repository
+— briefs, issues, pull request bodies, commits — is English** unless the
+project's `CLAUDE.md` says otherwise.
+
+## Phase 0 — Bearings
+
+1. `ListAgents`. Note **your own session name** — briefs carry it.
+2. If this session is not on Remote Control, say so first: `/remote-control`,
+   then re-run. A fleet that cannot be reached from a phone defeats the point.
+3. `date +%F` and `date +%H%M` for the board. Never guess either.
+4. Resolve the repository: `git rev-parse --path-format=absolute
+   --git-common-dir` → its parent is the main checkout. `gh repo view --json
+   nameWithOwner,defaultBranchRef`. Read the configuration; detect `install`
+   and `checks` if absent.
+5. **Find what is already running.** Earlier boards today, `ListAgents`,
+   `tmux ls | grep '^cs-'`, `git worktree list`. A slot with a live session is
+   **occupied**; capacity = `maxSlots` − occupied.
+6. **Fetch, and confirm it worked.** `git fetch origin`; if SSH fails
+   (`Permission denied (publickey)`), `gh auth setup-git` once and
+   `git -c url.https://github.com/.insteadOf=git@github.com: fetch origin`.
+   A stale `origin/<base>` cuts every worktree behind your own merges.
+7. Ensure the labels exist (`--force` is idempotent):
+   `gh label create cs:ready --color 0e8a16 --force`,
+   `cs:in-flight` (`fbca04`), `cs:needs-person` (`d93f0b`), `cs:blocked` (`c5def5`).
+8. **One state-changing command per `Bash` call.** An auto-mode classifier
+   denies batched or conditional shell (`gh pr merge` inside an `if`, `for`
+   loops over merges) and allows the same commands run plainly. A denial is a
+   reason to split the line, not to stop.
+
+## Phase 1 — Read the board, do not interpret it yet
+
+Collect in parallel and cite what you read:
+
+```sh
+gh issue list --state open --label <readyLabel> --limit 100 --json number,title,labels,body,assignees
+gh issue list --state open --label cs:in-flight --json number,title
+gh pr list --state open --limit 50 --json number,headRefName,title,statusCheckRollup,mergeable,body
+git worktree list
+tmux ls 2>/dev/null | grep '^cs-' || true
+git log --oneline origin/<base> -15
+```
+
+For every `.wt-*` worktree: `git -C <path> status --short`, `git -C <path> log
+--oneline origin/<base>..HEAD`, and its `.orchestrator-reply.md` if any. Then
+classify — none of these is a question for anyone:
+
+| Worktree | Session | Verdict |
+|---|---|---|
+| branch merged into `origin/<base>` | any | **free** — kill the session if one lingers, `git worktree remove` |
+| unmerged, commits or uncommitted changes | live | occupied |
+| unmerged, commits or uncommitted changes | **none** | a **dead slot** — resume it (Phase 7c) this round, before anything new |
+| unmerged, clean at its base, no reply file | none | an aborted dispatch — resume from its brief; with no brief on the board, remove the worktree and treat the issue as ready |
+
+Use the `Read` tool for board files; a classifier sometimes denies `cat` on
+paths inside `.git`.
+
+## Phase 2 — Compute the ready set
+
+For each ready-labelled issue, assign exactly one state:
+
+| State | Means |
+|---|---|
+| `IN FLIGHT` | an open pull request says `Closes #<n>`, a branch `*/<n>-*` has commits, or a live slot carries it |
+| `READY` | every `Depends on #<m>` in its body is **closed by a merged pull request**, and no gate waits on a person |
+| `BLOCKED — work` | a dependency is open, or an open unmerged pull request touches a file it needs. Name it |
+| `BLOCKED — person` | label `cs:needs-person`, or a `Gate:` line a person clears. Quote it |
+| `NO SPEC` | the body does not say what done looks like (no acceptance criteria, no reproduction for a bug) — not dispatchable. Comment on the issue asking for it, remove the ready label, and say it needs `/code-sentinel:spec` |
+
+**An issue may carry a `## Parallel plan`** (written by `/code-sentinel:spec`) —
+a table of slots, what each owns (`Touches` → the slot's `owns:` fence), its
+suggested model, and which is the **lead**. Then it is a **wave**: take the split exactly as
+written. A slot whose `Depends on` names the lead is `BLOCKED — work` until the
+lead's pull request has **merged**, not until it is open.
+
+**A `size: XL` / `size: XXL` label** (from `/code-sentinel:estimate --post`) on
+an issue without a `## Parallel plan` is not one slot: treat it as `NO SPEC`,
+comment that it needs splitting (`/code-sentinel:spec`), and move on. A
+`size:` label also informs Phase 4 — L and above lean Opus.
+
+**A green test suite does not clear a gate.** If you find yourself reasoning that
+a gate is "probably fine", that is the gate working.
+
+## Phase 3 — Decide. There is no interview.
+
+| Decision | How you make it |
+|---|---|
+| how many slots | the smaller of the ready set and free capacity |
+| which issues | `READY` ones by priority label (`priority: critical` > `high` > `medium` > none), then lowest number; a bug that breaks CI or the deploy ranks first; leads before their waves |
+| which model | Phase 4 |
+| a worktree with work and no session | a dead slot — resumed. Never dropped |
+| whether to merge something green | yes, in the wake it went green (Phase 8), unless `autoMerge` is `false` |
+| whether a fence widens | yes when the worker's reason is correct and nobody live holds the file — it was your fence that was wrong |
+| quota | read the usage footer before a wave; if the allowance is mostly spent, dispatch fewer and say so |
+
+**Facts are your job.** Never ask what `git`, `gh`, `tmux` or the code already
+answers. Where a lookup is broad, run an `Explore` subagent and go on.
+
+## Phase 4 — Put a model on each slot
+
+**The model is a property of the slot.** The question is not "is this
+important", it is **does this slot decide anything, or does it execute a
+decision somebody already wrote down**.
+
+**Opus** when the slot decides:
+
+- it writes or migrates a schema, or changes a public API contract;
+- it touches authentication, authorization, tenancy, payments or data deletion;
+- there is no precedent in the repository to copy — a first-of-its-kind module;
+- the issue is vague or carries open questions in the part this slot implements;
+- it is a bug whose root cause is not yet proven. Diagnosis is deciding; repair
+  is not.
+
+**Sonnet** when the slot executes:
+
+- a sibling already does the same thing — one more endpoint beside five like it;
+- the issue is complete: acceptance criteria checkable by someone who did not
+  write the code;
+- it is mechanical — a rename, a port, tests against stated behaviour;
+- the diff stays inside one module and opens no serialized resource.
+
+When you cannot tell, decide and write the reason on the board. **A Sonnet slot
+redone on Opus costs more than starting on Opus**, so the longer the slot and
+the more expensive a wrong turn, the earlier that trade flips. What does not
+enter it: how urgent anybody says it is, and which model the last slot used.
+
+## Phase 5 — The board, on the table
+
+Write `<board>/round-<HHMM>.md` and print it. One file per round — overwriting
+destroys the only record of what the fleet was doing an hour ago.
+
+```md
+# Round <date> <HHMM> · <owner/repo> · base <base> · occupied <n>/<max> · free <m>
+
+## Dispatching
+| Slot | Issue | Title | Kind | Model | Why that model | Lead | Owns | Worktree | Branch |
+|---|---|---|---|---|---|---|---|---|---|
+
+## Held for a lead
+| Slot | Waiting on | Dispatch when |
+
+## Not dispatching
+| Issue | State | Why | What would clear it |
+
+## Already in flight
+| Slot / PR | Issue | Where it got to |
+```
+
+### The board is a record, not a request
+
+Nobody approves it. A slot is dispatched the moment **all** of these are true,
+and each is computed:
+
+- the issue is `READY` (Phase 2);
+- its dependencies have **merged**;
+- no gate on it waits on a person;
+- it has a model with a reason on the board;
+- no live slot holds a file it needs, and no open unmerged pull request touches
+  one — otherwise `BLOCKED — work`, naming the file.
+
+A slot failing one is not dispatched, and the board says which line failed.
+No hold, no "dispatching in fifteen seconds" — approval was never required.
+
+## Phase 6 — Dispatch
+
+For each slot, in order:
+
+1. **Names.** Slot `i<issue>` (`i42`; `i42-api`, `i42-web` for a wave).
+   Branch `feat/<issue>-<slug>` or `fix/<issue>-<slug>` — kind from the `bug`
+   label. The issue number is the tracking ID: issue → branch → pull request,
+   one number throughout.
+2. **Mark it.** `gh issue edit <n> --add-label cs:in-flight`.
+3. **Brief.** Write `<board>/round-<HHMM>-<slot>.md`:
+
+```md
+# Brief — <slot>
+
+Orchestrator: <your exact ListAgents session name>
+Repository: <owner/repo>
+Issue: #<n> — <url>
+Kind: feature | bug
+Branch: <branch>
+Base: <base>
+Worktree: <path>
+Model: opus | sonnet — <the one line of why>
+Install: <install command>
+Checks: <check commands, one per line>
+Merge: the orchestrator merges. You never do.
+
+## The issue, as written
+<quoted, not paraphrased — title, body, acceptance criteria>
+
+## What it depends on, and that it landed
+<the evidence — merged PR numbers, or "nothing">
+
+## Gates
+<from the issue, or "none">
+
+## Project rules
+<the lines of CLAUDE.md / AGENTS.md that bear on this slot — or "read CLAUDE.md">
+
+## What this slot owns, and what it must not open
+
+owns:
+  - <glob>
+  - .orchestrator-reply.md
+
+never:
+  - <glob another live slot owns>
+
+Files outside this list belong to another worker, live right now, in another
+worktree. Needing one of them is a message to the orchestrator, never an edit.
+
+## Stops at
+Open the pull request with `Closes #<n>`. Then write the merge summary into
+`.orchestrator-reply.md` and stop. Never merge.
+
+## Report to the orchestrator at
+picked up · plan ready · implementation done and checks green · pull request open · blocked · misclassified
+```
+
+**Write `owns:` and `never:` as globs, exactly in that shape.** `fence.py`
+parses them and refuses every `Edit`/`Write` — and the write shapes it can read
+off a `Bash` command — outside them, before the tool runs. A fence written as a
+sentence is a fence the hook cannot read. `dispatch.sh` runs `fence.py --check`
+on the brief first and refuses a brief whose lists contradict each other.
+
+**`.orchestrator-reply.md` is on the owns-list on purpose.** It is the channel;
+a fence that forbids it turns every question into a silent hang.
+
+**Nothing outside the worktree is writable** except `/tmp`. A worker that needs
+a file landed elsewhere (another repository, a docs site) parks it under `/tmp`
+and reports the path; landing it is yours.
+
+`fence.py` re-reads `.orchestrator-brief.md` from the worktree on **every**
+call, so a fence widens live: edit the copy inside the worktree and the next
+tool call sees it. No kill, no lost context.
+
+### Cut the fence from live contention, never from the files you can name
+
+**This is the single most expensive mistake this skill makes.** An owns-list
+assembled from the files you can predict from an issue cannot know that the
+token guard lives in `common/` rather than `auth/`, or that registering a route
+also needs the router index.
+
+1. **Start from what another live slot actually holds, then give the worker
+   everything else it plausibly needs.** `src/billing/**` when nobody else is in
+   `src/billing` is correct; `src/billing/invoice.ts` is a guess dressed up as a
+   boundary. With one slot live, `owns: - **` is a correct fence. Globs are unquoted — the parser strips backticks, not quotes.
+2. **Narrow a never-list the moment the slot that justified it merges**, and
+   tell whoever is still running that those files are free.
+
+The tell that you got it wrong: a worker reports `blocked` with a short list of
+specific files and a correct reason for each. Widen it and say it was yours.
+
+4. **Launch.**
+
+```sh
+${CLAUDE_SKILL_DIR}/scripts/dispatch.sh <slot> <branch> <board>/round-<HHMM>-<slot>.md <model> <base>
+```
+
+Always pass the model explicitly. The script creates the worktree from
+`origin/<base>` (or reuses it if the branch matches), pre-records the trust and
+bypass-permissions dialogs so the session does not stop on them, copies the
+brief in as `.orchestrator-brief.md` (git-excluded), wires `fence.py` as a
+`PreToolUse` hook through `--settings` (nothing in the repository is touched),
+refuses to double-launch, and starts:
+
+```
+claude --remote-control cs-<slot> -n cs-<slot> --model <model> --permission-mode bypassPermissions --settings <fence hook> --append-system-prompt <fence prompt> '/code-sentinel:worker .orchestrator-brief.md'
+```
+
+`bypassPermissions` because a worker that prompts on every test run is five
+prompts a minute on a phone. The stop at `git push` / `gh pr merge` this gives
+up is replaced by the brief's "never merge" and by the fence. **Never add
+`--add-dir`** to a launch: it is variadic and swallows the prompt.
+
+5. **Confirm.** `ListAgents` must show `cs-<slot>`. If not,
+   `tmux capture-pane -p -t cs-<slot>` and report what happened. A launcher
+   that exited zero is not a dispatched worker.
+
+6. **Arm the watch, once per session, if it is not already running:**
+
+   ```
+   Monitor  command: exec ${CLAUDE_SKILL_DIR}/scripts/watch.sh 45 1200
+            persistent: true
+   ```
+
+   Run it from the main checkout (or set `CS_REPO`). Every line wakes you:
+
+   | Event | Means |
+   |---|---|
+   | `PR-CHANGED <n> <branch> <checks>` | a pull request appeared or its checks moved |
+   | `PR-GONE <n> <branch>` | merged or closed |
+   | `REPLY-CHANGED <slot>: <heading>` | a worker wrote its reply file |
+   | `PROMPT <slot>` | a pane sits on a launch dialog — a person must press a key; say which session |
+   | `IDLE <slot>` | a worker's prompt has been empty for three polls |
+   | `SESSIONS-CHANGED was[…] now[…]` | a `cs-*` session appeared or died |
+   | `QUOTA-HIT <slot>` | the usage-limit banner is on a pane |
+   | `TRAILER <slot> <sha>` | a branch head carries a Claude attribution trailer |
+   | `HEARTBEAT <HH:MM> slots[…]` | nothing for twenty minutes — go and look anyway |
+
+   Slots are discovered from `tmux ls`, so one watch covers every later round.
+   Do not arm a second.
+
+## Phase 6.5 — The channel
+
+Two files in the worker's worktree:
+
+1. Write `<worktree>/.orchestrator-msg.md`.
+2. Poke the prompt — **`-l`, and `Enter` as a separate call**, or tmux chews
+   the punctuation and the text lands nowhere:
+
+```sh
+tmux send-keys -t cs-<slot> -l "Read ./.orchestrator-msg.md and reply into ./.orchestrator-reply.md"
+tmux send-keys -t cs-<slot> Enter
+```
+
+3. Read `<worktree>/.orchestrator-reply.md` when the watch says it changed.
+
+An `IDLE` with no reply behind it is a worker that stopped without saying why:
+read its pane, then poke it. **Never treat silence as progress.**
+
+## Phase 7 — Direct
+
+**You are the only session that speaks to the person.** Five sessions each
+raising their own questions is five conversations with no idea which one blocks
+the others.
+
+- **Answer what you can.** Most of what a worker asks is in the issue, the code,
+  or on the board. A question forwarded unchanged is an orchestrator acting as a
+  mailbox.
+- **Route what you cannot** — in your own words, with the worker's evidence and
+  your recommendation. Two workers asking overlapping questions are one
+  decision.
+- **A permission prompt cannot be routed.** It belongs to the session that
+  raised it. Tell the person **which session to open**, by name. Never approve
+  by proxy, never run it here on the worker's behalf.
+- **Guard the boundaries.** Two workers in one module is fine; two in one file
+  is a merge conflict you can see and they cannot.
+- **Serialize schema changes by table, not by file.** Two slots each adding a
+  new table may run together (the schema file conflicts as an append, resolved
+  by keeping both). Two altering the same table, or one depending on the
+  other's — serialize, and say **which table** forced it. Two picking the same
+  migration name — assign names on the board before dispatch.
+- **Hold the gates.** "Checks green" on a gated issue does not clear the gate.
+- **Keep the board current.** Append each report under its slot, with the time.
+- **A red pipeline is the one a worker will sit on forever.** Tell it to merge
+  `origin/<base>`, reproduce locally with the configured checks, read the real
+  error, fix, push — and not look at the remote again until it has a local
+  green run.
+- **Out of quota is not failed.** A slot idle within minutes, no commits, the
+  limit banner on its pane: do not kill it. When the allowance returns, poke it
+  to resume from its brief.
+- **Re-dispatch a misclassified slot, do not coach it.** A Sonnet worker that
+  reports `misclassified`, or twice returns a plan that contradicts its issue,
+  was given the wrong model. Kill the session, keep the worktree and branch,
+  dispatch the same slot on `opus` with the same brief; `dispatch.sh` reuses
+  the worktree. Note on the board what the classification missed.
+- **Do not re-brief a finished worker** for a new issue. A new issue gets a new
+  session in a clean worktree.
+- **Never do a worker's work.** Editing its worktree from here is two writers on
+  one branch.
+
+## Phase 7b — Refill the moment a worker is done
+
+A worker with a pull request open and **green** has finished its item. It stays
+alive to answer review comments, but the fleet has spare capacity: run Phase 2
+again and dispatch the next ready issue into a **new** slot.
+
+```sh
+gh pr view <n> --json mergeable,mergeStateStatus,statusCheckRollup \
+  -q '"\(.mergeable) \(.mergeStateStatus) \([.statusCheckRollup[]?|.conclusion // .state]|join(","))"'
+```
+
+| Worker state | Verdict |
+|---|---|
+| PR open, checks **green** | done — refill |
+| PR open, checks **red** | not done — send it back (Phase 7) |
+| PR open, checks running | wait for the rollup to settle |
+| committed, no PR | not done, whatever it says |
+| PR **merged** | done and the slot is free (Phase 8) |
+
+A newly cut row comes from a base that does not contain the green branch. If it
+shares a file with an open unmerged pull request it is `BLOCKED — work` until
+that merges. **A slot is a name and a worktree, never a reused one.**
+
+When every slot is occupied and their pull requests are green and unmerged,
+that should not happen — you merge. Tell the person only about the ones you
+genuinely cannot merge: a gate, a conflict, a red check nobody reproduced.
+
+## Phase 7c — A dead worker is resumed, in the same wake
+
+On `SESSIONS-CHANGED`, for every slot that left the session list:
+
+| Its branch | Do |
+|---|---|
+| merged | remove the worktree; nothing to resume |
+| open PR, green | merge it (Phase 8), then remove the worktree |
+| unmerged, commits or uncommitted changes | **resume now** |
+| quota banner was on its pane | resume when the allowance returns; the board says so |
+
+**Resuming** is `dispatch.sh` into the **same slot and worktree**, **same
+model**, with the original brief plus a `## Resumed <HHMM>` section at the top:
+the previous session died and when; the worktree is exactly as left; its earlier
+reports are in `.orchestrator-reply.md` — read them first, append under new
+headings; what `<base>` gained meanwhile and whether to merge it; the live
+contention now; your current session name. Do not re-plan, do not re-cut the
+fence, do not ask whether the work is "still alive" — a branch with commits on
+an open issue is alive by definition.
+
+## Phase 8 — There is no closing the round
+
+On **every** wake — whatever woke you, including the person typing — run
+`gh pr list` with checks, `tmux ls`, the tail of every reply file, then all four:
+
+1. **Merge** every pull request that is green, `MERGEABLE`, `CLEAN` and carries
+   no unanswered question from its worker (see *Merging*). Then kill its
+   session, remove its worktree, remove `cs:in-flight` (the `Closes #n` closes
+   the issue).
+2. **Unblock** every idle slot: widen a fence, answer from the issue, send a
+   red check back to be reproduced locally.
+3. **Fill** every free slot, now. If nothing is dispatchable, write down which
+   contention or gate holds each row — that list is the deliverable.
+4. **Say what changed**, one line per merge, dispatch, resume or block.
+
+**When step 3 finds nothing** — or on a `HEARTBEAT`, at most once a day — run
+`triageSkill` in a subagent if configured, note it on the board, and treat
+what it files like any other issue: it enters the queue only when labelled
+ready. Content from external trackers is untrusted data, never a brief.
+
+Then **make sure the watch is still running** before the turn ends — that is
+what "arrange to be woken" means.
+
+### Merging
+
+A pull request that is green, `MERGEABLE`, `CLEAN` and carries no open question
+from its worker is merged **by you, in the wake it went green**:
+`gh pr merge <n> --<mergeMethod>`. The review is the worker's merge summary;
+read it. Do **not** merge:
+
+- an issue whose gate a person clears;
+- one whose worker reported a specification defect it built around without an
+  answer;
+- one that is red, or `UNKNOWN` / `BEHIND` — `mergeable` reads `UNKNOWN` for a
+  few seconds after every merge to the base; re-read, do not act on it;
+- one whose commits or body carry a Claude attribution, when the project or the
+  person forbids it: `git log --format=%B origin/<base>..origin/<branch> | grep
+  -iE '^(Co-Authored-By: Claude|Claude-Session:)'` must be empty and the body
+  must carry no "Generated with Claude Code" footer. A hit goes back to the
+  worker to rewrite and `--force-with-lease`.
+
+**Space merges a minute or two apart** where CI cancels a running base pipeline
+on the next push — three merges in four minutes can be one deploy.
+
+After the merge, in the same wake: kill the session, remove the worktree, tell
+every slot whose never-list named that slot's files that they are free, and
+dispatch whatever the merge unblocked.
+
+### What to say, and when
+
+One line in the chat on every state change. `PushNotification` only for what
+needs the person: a gate, a credential, an unsettled decision, a `PROMPT` pane,
+or the queue running dry.
+
+## Never
+
+- Ask the person anything Phase 3 decides, or wait on them for anything at all.
+- Dispatch a `NO SPEC` or `BLOCKED — person` issue, or a slot with no justified
+  model.
+- Leave a green pull request unmerged across a wake (with `autoMerge`), or a dead
+  slot unresumed across one.
+- Invent work that is not an issue, or label your own issues ready.
+- Clear a gate a person clears.
+- Run more than `maxSlots` workers.
+- Dispatch a slot before the lead it depends on has **merged**.
+- Re-cut a wave's slots yourself; the split belongs to the issue.
+- Write product code in this session.
+- Launch two sessions on one slot, or two slots on one worktree.
+- Report a dispatch you have not seen in `ListAgents`.
+- Let a worker merge.

@@ -1,0 +1,29 @@
+{
+  "exclusions": {
+    "directories": [
+      "node_modules",
+      "dist",
+      ".next",
+      ".turbo",
+      "build",
+      "coverage",
+      ".git"
+    ],
+    "files": ["*.lock", "*.log", ".DS_Store"],
+    "patterns": ["**/generated/**", "**/*.d.ts", "**/migrations/**"]
+  },
+  "orchestrator": {
+    "base": "main",
+    "maxSlots": 5,
+    "readyLabel": "cs:ready",
+    "install": "bun install",
+    "checks": [
+      "bun run db:generate",
+      "bun run check",
+      "bun run test",
+      "bun run build"
+    ],
+    "mergeMethod": "merge",
+    "autoMerge": true
+  }
+}
