@@ -10,6 +10,10 @@
   - Merges green PRs itself, resumes dead workers in place, refills every free slot in the same pass, wakes on events via `watch.sh` under `Monitor`
   - Bundled scripts in `skills/orchestrator/scripts/`: `dispatch.sh` (worktree + pre-flight + launch), `watch.sh` (event stream), `fence.py` (`PreToolUse` ownership fence, passed via `--settings` — nothing committed into the target repo), trust / bypass-permission pre-flight helpers, `fence_test.py`
 - **`/cs-worker`** — what a dispatched session runs: one brief, one issue, checkpoint reports through `.orchestrator-reply.md`, stops before merge
+- **`/cs-init`** — fullstack monorepo scaffold (Bun + Turborepo, NestJS 11 + Prisma 7 + PostgreSQL 16, Next.js 16 + React 19 + Tailwind 4, shared package, Biome 2, Jest)
+  - Interview: name, title, location, API / web / DB ports — recommendations computed from listening sockets and published container ports, validated free and distinct
+  - `scaffold.sh` + `template/`; verified end to end: install, `biome check`, tests, build, initial migration, seed, `/health`
+  - Fixes over the reference layout: Biome 2 config, Prisma 7 `prisma.config.ts` (datasource, seed, dotenv), seed with the pg adapter, missing `class-validator` / `class-transformer` (ValidationPipe exits without them), jest types + `tsconfig.build.json`, first-run `init` migration, compose `name:` so projects do not share the `docker` project and its volumes, web port in scripts
 - **`/cs-spec`** — specification interview: discovery from evidence, design-tree questions in rounds with recommended defaults, decision-record check, contention map and `## Parallel plan` (one writer per file, serialize by table, model per slot); lands as a GitHub issue (+ optional spec file via docs PR) and optionally queues it with `cs:ready`
 - **`/cs-feature`** — feature or bug fix from request to PR: study, plan, approval (interactive / `--auto` / `--worker`), issue, branch, step-by-step implementation with checks, PR with `Closes #N`
 
@@ -23,7 +27,7 @@
 
 ### Files Changed
 
-- `skills/orchestrator/**`, `skills/worker/SKILL.md`, `skills/feature/SKILL.md`, `skills/spec/SKILL.md` — new
+- `skills/orchestrator/**`, `skills/worker/SKILL.md`, `skills/feature/SKILL.md`, `skills/spec/SKILL.md`, `skills/init/**` — new
 - `skills/issue/SKILL.md` — autonomous and queue modes
 - `CLAUDE.md`, `README.md`, `.code-analyzer-config.json` — docs and config
 - `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` — version bump to 1.24.0

@@ -32,6 +32,8 @@ skills/
   arch/SKILL.md                         — /cs-arch
   unit-test/SKILL.md                    — /cs-unit-test
   test/SKILL.md                         — /cs-test
+  init/SKILL.md                         — /cs-init
+  init/scaffold.sh, init/template/      — fullstack monorepo generator and template (dotfiles stored as _name)
   spec/SKILL.md                         — /cs-spec
   feature/SKILL.md                      — /cs-feature
   worker/SKILL.md                       — /cs-worker
@@ -51,6 +53,7 @@ skills/
 | `/cs-conflict [PR#]`                            | Resolve merge conflicts — auto-resolves obvious conflicts (imports, formatting), interactive resolution for ambiguous ones     |
 | `/cs-debug <error\|#issue>`                     | Deep debugger — trace root cause from error, stack trace, symptom, or GitHub issue                                            |
 | `/cs-issue [description] [--auto] [--ready]`    | Create GitHub issues from findings or requests — duplicate check, user confirmation or `--auto`; `--ready` queues for `/cs-orchestrator` |
+| `/cs-init [name] [dir]`                          | Scaffold a fullstack monorepo (Bun/Turbo, NestJS + Prisma + Postgres, Next.js + Tailwind, Biome) — interview for name, location, ports; verified build |
 | `/cs-spec [what\|#issue]`                        | Specification interview — design tree in rounds, decision check, contention map, parallel plan; lands as an issue for `/cs-orchestrator` |
 | `/cs-feature <#issue\|desc> [--auto] [--worker]` | Feature or bug fix from request to PR — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR              |
 | `/cs-orchestrator [start\|status\|next\|stop]`   | Autonomous fleet — parallel worker sessions in git worktrees for `cs:ready` issues, auto-merge green PRs, refill slots        |
@@ -94,6 +97,7 @@ Skills auto-detect missing MCPs and offer to install via `AskUserQuestion`. If s
 - `node_modules`, `dist`, `.next`, `build` are **always** excluded across all skills
 - All exclusions respect `.code-analyzer-config.json`
 - Each skill runs **one sequential analysis** (single-agent, not parallel) — except `cs-orchestrator`, which dispatches parallel worker sessions by design
+- Init skill (`cs-init`) creates a **new** project only — refuses non-empty directories; template changes must be verified by generating a throwaway project (install, check, test, build, db:setup)
 - Spec skill (`cs-spec`) writes documents only (issue body, optional spec file / decision record via a docs PR) — never product code, never dispatches; asks before publishing
 - Feature skill (`cs-feature`) modifies source code — only after an approved plan (or a posted plan under `--auto`), always on a feature branch, never merges
 - Orchestrator (`cs-orchestrator`) never writes product code; it creates worktrees/branches, labels issues, and merges green PRs (unless `orchestrator.autoMerge` is `false`). Workers (`cs-worker`) are fenced by `orchestrator/scripts/fence.py` and never merge

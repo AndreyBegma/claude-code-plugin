@@ -34,6 +34,7 @@ After installation, the `/cs-*` commands will be available in Claude Code.
 | `/cs-conflict [PR#]`              | Resolve merge conflicts — auto-resolves obvious conflicts, interactive for ambiguous ones              |
 | `/cs-debug <error\|#issue>`        | Deep debugging — trace root cause; close issue if already fixed                                       |
 | `/cs-issue [description] [--auto] [--ready]` | Create GitHub issues from findings or requests — duplicate check, user confirmation or `--auto`; `--ready` queues for the orchestrator |
+| `/cs-init [name] [dir]`            | Scaffold a fullstack monorepo (Bun + Turborepo, NestJS + Prisma + PostgreSQL, Next.js + Tailwind, Biome) — asks name, location and ports (checked free), installs, migrates, verifies |
 | `/cs-spec [what \| #issue]`         | Specification interview in rounds — design tree, decision check, contention map and parallel plan; lands as an issue the orchestrator can dispatch |
 | `/cs-feature <#issue\|desc> [--auto]` | Feature or bug fix from request to pull request — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR |
 | `/cs-orchestrator [start\|status\|next\|stop]` | Autonomous fleet — dispatches parallel worker sessions in git worktrees for ready issues, merges green PRs, refills slots |
@@ -181,6 +182,10 @@ All commands use the `cs-` prefix (code-sentinel) to avoid conflicts with built-
 # Write a unit test for a fix in PR #42
 /cs-unit-test 42
 
+# Scaffold a new fullstack project (asks name, location, api/web/db ports)
+/cs-init
+/cs-init acme ~/dev/acme
+
 # Specify a feature (interview → parallel plan → issue), or discover what to specify
 /cs-spec "Users can export their data"
 /cs-spec
@@ -321,6 +326,9 @@ skills/
   arch/SKILL.md                         — /cs-arch
   unit-test/SKILL.md                    — /cs-unit-test
   test/SKILL.md                         — /cs-test
+  init/SKILL.md                         — /cs-init
+  init/scaffold.sh                      — generator (placeholder substitution, refuses non-empty targets)
+  init/template/                        — the fullstack monorepo template
   spec/SKILL.md                         — /cs-spec
   feature/SKILL.md                      — /cs-feature
   worker/SKILL.md                       — /cs-worker

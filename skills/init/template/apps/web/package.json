@@ -1,0 +1,25 @@
+{
+  "name": "@__SCOPE__/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "start": "next start -p __WEB_PORT__",
+    "start:dev": "next dev --turbopack -p __WEB_PORT__",
+    "lint": "biome lint src"
+  },
+  "dependencies": {
+    "@__SCOPE__/shared": "workspace:*",
+    "next": "16.2.3",
+    "react": "19.2.5",
+    "react-dom": "19.2.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2"
+  }
+}

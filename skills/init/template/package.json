@@ -1,0 +1,32 @@
+{
+  "name": "__SCOPE__",
+  "private": true,
+  "packageManager": "bun@__BUN_VERSION__",
+  "engines": {
+    "node": ">=__NODE_MAJOR__"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "start:dev": "turbo run start:dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:up": "docker compose -f docker/docker-compose.yml up -d",
+    "db:down": "docker compose -f docker/docker-compose.yml down",
+    "db:migrate": "turbo run db:migrate --filter=@__SCOPE__/api",
+    "db:generate": "turbo run db:generate --filter=@__SCOPE__/api",
+    "db:seed": "turbo run db:seed --filter=@__SCOPE__/api",
+    "db:studio": "cd apps/api && bunx prisma studio",
+    "db:setup": "sh scripts/db-start-docker.sh",
+    "format": "biome format --write .",
+    "check": "biome check ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.10",
+    "turbo": "2.9.5",
+    "typescript": "6.0.2"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
