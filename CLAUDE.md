@@ -32,6 +32,11 @@ skills/
   arch/SKILL.md                         — /cs-arch
   unit-test/SKILL.md                    — /cs-unit-test
   test/SKILL.md                         — /cs-test
+  spec/SKILL.md                         — /cs-spec
+  feature/SKILL.md                      — /cs-feature
+  worker/SKILL.md                       — /cs-worker
+  orchestrator/SKILL.md                 — /cs-orchestrator
+  orchestrator/scripts/                 — dispatch.sh, watch.sh, fence.py, fence_test.py, launch pre-flight helpers
 ```
 
 ## Skills
@@ -45,7 +50,11 @@ skills/
 | `/cs-pr-merge <PR#>`                            | Extract rules from PR comments, create CLAUDE.md PR automatically — CI-ready                                                  |
 | `/cs-conflict [PR#]`                            | Resolve merge conflicts — auto-resolves obvious conflicts (imports, formatting), interactive resolution for ambiguous ones     |
 | `/cs-debug <error\|#issue>`                     | Deep debugger — trace root cause from error, stack trace, symptom, or GitHub issue                                            |
-| `/cs-issue [description]`                       | Create GitHub issues from analysis findings — with duplicate check and user confirmation                                      |
+| `/cs-issue [description] [--auto] [--ready]`    | Create GitHub issues from findings or requests — duplicate check, user confirmation or `--auto`; `--ready` queues for `/cs-orchestrator` |
+| `/cs-spec [what\|#issue]`                        | Specification interview — design tree in rounds, decision check, contention map, parallel plan; lands as an issue for `/cs-orchestrator` |
+| `/cs-feature <#issue\|desc> [--auto] [--worker]` | Feature or bug fix from request to PR — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR              |
+| `/cs-orchestrator [start\|status\|next\|stop]`   | Autonomous fleet — parallel worker sessions in git worktrees for `cs:ready` issues, auto-merge green PRs, refill slots        |
+| `/cs-worker <brief>`                             | Worker session launched by `/cs-orchestrator` — one issue, one worktree, ownership fence, never merges                        |
 | `/cs-perf [path\|category]`                     | Performance analyzer — N+1 queries, re-renders, memory leaks, bundle size                                                     |
 | `/cs-ux-review [url\|focus]`                    | UX analysis — friction points, redesign proposals with before/after mockups                                                   |
 | `/cs-seo <path> [--fix\|--url\|--compare]`      | SEO analysis from GSC exports — quick wins, problems, meta tag fixes                                                          |
@@ -84,7 +93,11 @@ Skills auto-detect missing MCPs and offer to install via `AskUserQuestion`. If s
 - All commands use the `cs-` prefix to avoid naming conflicts
 - `node_modules`, `dist`, `.next`, `build` are **always** excluded across all skills
 - All exclusions respect `.code-analyzer-config.json`
-- Each skill runs **one sequential analysis** (single-agent, not parallel)
+- Each skill runs **one sequential analysis** (single-agent, not parallel) — except `cs-orchestrator`, which dispatches parallel worker sessions by design
+- Spec skill (`cs-spec`) writes documents only (issue body, optional spec file / decision record via a docs PR) — never product code, never dispatches; asks before publishing
+- Feature skill (`cs-feature`) modifies source code — only after an approved plan (or a posted plan under `--auto`), always on a feature branch, never merges
+- Orchestrator (`cs-orchestrator`) never writes product code; it creates worktrees/branches, labels issues, and merges green PRs (unless `orchestrator.autoMerge` is `false`). Workers (`cs-worker`) are fenced by `orchestrator/scripts/fence.py` and never merge
+- Skill-bundled scripts are referenced as `${CLAUDE_SKILL_DIR}/scripts/...`; run `python3 skills/orchestrator/scripts/fence_test.py` after changing `fence.py`
 - Prioritizes HIGH/CRITICAL findings; lower-severity issues included where appropriate
 - Respects `$ARGUMENTS` to analyze specific directories
 - All user confirmations use **interactive selectors** (`AskUserQuestion`), not text prompts — patterns inlined into each skill

@@ -33,7 +33,11 @@ After installation, the `/cs-*` commands will be available in Claude Code.
 | `/cs-pr-merge <PR#>`              | Extract rules from PR comments, create CLAUDE.md PR automatically — CI-ready                          |
 | `/cs-conflict [PR#]`              | Resolve merge conflicts — auto-resolves obvious conflicts, interactive for ambiguous ones              |
 | `/cs-debug <error\|#issue>`        | Deep debugging — trace root cause; close issue if already fixed                                       |
-| `/cs-issue [description]`          | Create GitHub issues from analysis findings — with duplicate check and user confirmation              |
+| `/cs-issue [description] [--auto] [--ready]` | Create GitHub issues from findings or requests — duplicate check, user confirmation or `--auto`; `--ready` queues for the orchestrator |
+| `/cs-spec [what \| #issue]`         | Specification interview in rounds — design tree, decision check, contention map and parallel plan; lands as an issue the orchestrator can dispatch |
+| `/cs-feature <#issue\|desc> [--auto]` | Feature or bug fix from request to pull request — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR |
+| `/cs-orchestrator [start\|status\|next\|stop]` | Autonomous fleet — dispatches parallel worker sessions in git worktrees for ready issues, merges green PRs, refills slots |
+| `/cs-worker <brief>`               | Worker session started by `/cs-orchestrator` — one issue, one worktree, ownership fence, stops before merge |
 | `/cs-perf [path]`                  | Performance analysis: N+1 queries, React re-renders, memory leaks, bundle size                        |
 | `/cs-ux-review [url\|focus]`       | UX analysis: friction points, redesign proposals with before/after mockups                            |
 | `/cs-seo <path>`                   | SEO analysis from GSC exports — quick wins, problems, meta tag fixes with `--fix` flag                |
@@ -177,6 +181,24 @@ All commands use the `cs-` prefix (code-sentinel) to avoid conflicts with built-
 # Write a unit test for a fix in PR #42
 /cs-unit-test 42
 
+# Specify a feature (interview → parallel plan → issue), or discover what to specify
+/cs-spec "Users can export their data"
+/cs-spec
+
+# Implement a feature: plan → approval → issue → branch → PR
+/cs-feature "Add CSV export to the reports page"
+
+# Implement an existing issue fully autonomously
+/cs-feature #57 --auto
+
+# Queue work for the orchestrator
+/cs-issue "Rate-limit the login endpoint" --auto --ready
+
+# Run the fleet unattended (needs tmux, gh, python3; start it on Remote Control)
+/cs-orchestrator start
+/cs-orchestrator status
+/cs-orchestrator stop i57
+
 # Write a test (unit or integration) for a fix in PR #42
 /cs-test 42
 
@@ -212,9 +234,32 @@ Create `.code-analyzer-config.json` in the project root to customize analysis:
       "aws": "AKIA[0-9A-Z]{16}",
       "github": "ghp_[0-9a-zA-Z]{36}"
     }
+  },
+  "orchestrator": {
+    "base": "develop",
+    "maxSlots": 5,
+    "readyLabel": "cs:ready",
+    "install": "bun install",
+    "checks": ["bun run lint", "bun run test", "bun run build"],
+    "mergeMethod": "merge",
+    "autoMerge": true
   }
 }
 ```
+
+Every `orchestrator` key is optional — base defaults to origin's default branch, install and checks are detected from the project.
+
+## Autonomous fleet
+
+`/cs-orchestrator` turns a GitHub issue queue into merged pull requests without supervision:
+
+1. **Queue** — open issues labelled `cs:ready` (specify them with `/cs-spec`, or file them with `/cs-issue --auto --ready`). A `## Parallel plan` table in the issue splits it into a wave of slots. `Depends on #N` lines order them; `cs:needs-person` or a `Gate:` line holds them.
+2. **Dispatch** — one `claude` session per issue (`tmux` session `cs-<slot>`, Remote Control on), each in its own git worktree next to the repository, on its own branch, with a model chosen per slot (Opus for decisions, Sonnet for execution).
+3. **Fence** — each brief carries `owns:` / `never:` globs; `fence.py` runs as a `PreToolUse` hook (passed with `--settings`, nothing committed) and refuses writes outside them, including shell writes it can parse.
+4. **Channel** — workers report through `.orchestrator-reply.md`; `watch.sh` under `Monitor` wakes the orchestrator on PR, reply, idle, dead-session and quota events.
+5. **Merge & refill** — green, mergeable PRs are merged by the orchestrator, worktrees removed, and the next ready issue dispatched in the same pass. Dead workers are resumed in their worktree.
+
+Requirements: `git` ≥ 2.31, `gh` (authenticated), `tmux` ≥ 3.2, `python3`, `claude` on `PATH`.
 
 ## Confirmation UX
 
@@ -240,7 +285,7 @@ In "Other" you can type:
 
 Each skill is a standalone `SKILL.md` with frontmatter metadata and instructions for a Claude Code agent:
 
-- **Single-agent design** — each skill runs one sequential analysis, not parallel
+- **Single-agent design** — each skill runs one sequential analysis, not parallel (the exception is `/cs-orchestrator`, whose whole job is parallel worker sessions)
 - **Token efficient** — prioritizes HIGH/CRITICAL findings; lower-severity issues are included where appropriate
 - **Scope-aware** — pass a path as argument to analyze a specific directory
 - **Exclusion-aware** — reads `.code-analyzer-config.json` to skip files/folders
@@ -276,6 +321,11 @@ skills/
   arch/SKILL.md                         — /cs-arch
   unit-test/SKILL.md                    — /cs-unit-test
   test/SKILL.md                         — /cs-test
+  spec/SKILL.md                         — /cs-spec
+  feature/SKILL.md                      — /cs-feature
+  worker/SKILL.md                       — /cs-worker
+  orchestrator/SKILL.md                 — /cs-orchestrator
+  orchestrator/scripts/                 — dispatch.sh, watch.sh, fence.py (+ fence_test.py) and launch pre-flight helpers
 CLAUDE.md                              — internal project instructions
 README.md                              — this file
 ```

@@ -1,7 +1,6 @@
 {
   "version": "1.15.0",
   "description": "Configuration for Claude Code Analyzer Plugin",
-
   "exclusions": {
     "directories": [
       "node_modules",
@@ -14,7 +13,12 @@
       ".vscode",
       ".idea"
     ],
-    "files": ["*.lock", "*.log", ".DS_Store", "Thumbs.db"],
+    "files": [
+      "*.lock",
+      "*.log",
+      ".DS_Store",
+      "Thumbs.db"
+    ],
     "patterns": [
       "**/@generated/**",
       "**/*.d.ts",
@@ -22,7 +26,6 @@
       "**/seeds/**"
     ]
   },
-
   "dead-code": {
     "enabled": true,
     "skipDependencyCheck": false,
@@ -30,7 +33,6 @@
     "skipEnvironmentVars": false,
     "minFilesToAnalyze": 10
   },
-
   "security": {
     "enabled": true,
     "checkSecrets": true,
@@ -43,5 +45,17 @@
       "stripe": "sk_live_[0-9a-zA-Z]{24,}",
       "generic_private_key": "-----BEGIN (RSA |EC )?PRIVATE KEY-----"
     }
+  },
+  "orchestrator": {
+    "base": null,
+    "maxSlots": 5,
+    "readyLabel": "cs:ready",
+    "specDir": null,
+    "install": null,
+    "checks": [],
+    "mergeMethod": "merge",
+    "autoMerge": true,
+    "defaultModel": "sonnet",
+    "triageSkill": null
   }
 }

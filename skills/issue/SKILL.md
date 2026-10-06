@@ -1,21 +1,32 @@
 ---
 name: cs-issue
-description: Create GitHub issues from analysis findings, bug descriptions, or code inspection — with user confirmation before each issue
+description: Create GitHub issues from analysis findings, bug descriptions, feature requests, or code inspection — with user confirmation, or autonomously with --auto. --ready queues them for cs-orchestrator
+argument-hint: "[description | path] [--auto] [--ready] [--depends-on <n,...>]"
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion
 ---
 
 # GitHub Issue Creator
 
-You create well-structured GitHub issues from analysis findings or bug descriptions. **Never create an issue without explicit user confirmation.**
+You create well-structured GitHub issues from analysis findings, bug descriptions or feature requests. **Without `--auto`, never create an issue without explicit user confirmation.**
 
 ## Inputs
 
 `$ARGUMENTS` — one of:
 
 - **Empty** — collect findings from the current conversation (previous `/cs-security`, `/cs-debug`, etc.)
-- **Text description** — `"Login fails when email contains +"` — enrich with code context and create one issue
+- **Text description** — `"Login fails when email contains +"` or `"Add CSV export to reports"` — enrich with code context and create one issue
 - **File path** — `src/api/handler.ts` — inspect the file, find problems, propose issues
+
+Flags:
+
+| Flag | Effect |
+|---|---|
+| `--auto` | **Autonomous.** Skip Step 3's confirmation: create every non-duplicate issue (CRITICAL + HIGH from findings; the one issue for a description), then report. Used by `cs-feature --auto` and `cs-orchestrator` |
+| `--ready` | Also add the orchestrator's ready label (`.code-analyzer-config.json` → `orchestrator.readyLabel`, default `cs:ready`) so `cs-orchestrator` picks the issue up. Only with acceptance criteria (feature) or a reproduction (bug) — an issue without either gets no ready label and a note saying why |
+| `--depends-on <n,...>` | Write `Depends on #n` lines into the body — the orchestrator dispatches only after those issues are closed by merged pull requests |
+
+**Kind.** Every issue is a `bug` (something behaves wrongly or used to work) or a `feature` (something is missing). Findings from `/cs-security`, `/cs-debug` and `/cs-perf` are bugs; `/cs-dead-code` and `/cs-review` findings are features (cleanup work) unless they describe broken behaviour.
 
 ## Step 1: Gather Findings
 
@@ -79,7 +90,7 @@ Options:
 
 User can type in "Other": numbers (`1 3`) = specific items, inverted (`!1`) = all except. These are **item numbers**, not option numbers.
 
-**Wait for user response before proceeding.**
+**Wait for user response before proceeding.** Under `--auto`, skip this step: print the list and go straight to Step 4.
 
 ## Step 4: Create Issues
 
@@ -97,7 +108,38 @@ Show `✅ Created #N — <title> — <url>` after each.
 [SEVERITY] Short description — file:line
 ```
 
-### Issue Body Format
+### Issue Body Format — feature request
+
+A request (not a finding) gets this body, in this order and nothing else:
+
+````markdown
+## What is missing
+[Plain words, no preamble]
+
+## Why it matters
+[What cannot be done, or what breaks, until this exists]
+
+## Where
+- `path/to/module/` — [what lives there and why it is affected]
+
+## Acceptance criteria
+- [ ] [Checkable by someone who did not write the code]
+- [ ] [...]
+
+## Out of scope
+- [What this issue deliberately does not do]
+
+Depends on #N        ← one line per dependency, only with --depends-on
+Gate: [...]          ← only if a person must clear something before merge (a key, a sign-off, a release window)
+
+## Found By
+
+Code Sentinel `/cs-issue`
+````
+
+Title for a request: `feat: <short imperative>`; for a bug from a description: `fix: <short imperative>`.
+
+### Issue Body Format — finding
 
 ````markdown
 ## Description
@@ -117,6 +159,10 @@ Show `✅ Created #N — <title> — <url>` after each.
 
 [Concrete fix recommendation from the analysis]
 
+## Reproduction / Acceptance
+
+- [ ] [How to see it fail, or what proves it fixed — a test, a command, steps]
+
 ## Found By
 
 Code Sentinel `/cs-issue` — automated analysis
@@ -132,6 +178,8 @@ Apply labels based on issue type. Create labels if they don't exist:
 - Finding from `/cs-review` → `code-quality`
 - Finding from `/cs-perf` → `performance`
 - Always add: `claude-generated`
+- Kind: `bug` or `enhancement` (GitHub's defaults)
+- With `--ready`: the ready label (`cs:ready` by default)
 
 Severity labels:
 
@@ -161,5 +209,9 @@ Omit if nothing was skipped.
 
 ## Important
 
-- **Never create issues without user confirmation** — this is the core rule
+- **Without `--auto`, never create issues without user confirmation** — this is the core rule
+- Under `--auto`, the duplicate check is still mandatory, and nothing is ever labelled ready without acceptance criteria or a reproduction
+- One change, one issue — never open a second issue for something that already has one
+- No local filesystem paths in titles or bodies — repository-relative paths only
+- Never paste user data, secrets or tokens into an issue
 - If `gh` is not authenticated, tell the user to run `gh auth login` and stop
