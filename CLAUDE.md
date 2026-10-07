@@ -40,7 +40,7 @@ skills/
   worker/SKILL.md                       — /cs-worker
   orchestrator/SKILL.md                 — /cs-orchestrator
   orchestrator/EVENTS.md                — events.jsonl / state.json contract and event catalogue
-  orchestrator/scripts/                 — dispatch.sh, watch.sh, fence.py, fence_test.py, emit.py, emit_test.py, dispatch_test.py, wiring_test.sh, launch pre-flight helpers
+  orchestrator/scripts/                 — dispatch.sh, watch.sh, fence.py, fence_test.py, emit.py, emit_test.py, dispatch_test.py, wiring_test.sh, spec_dir.py (specDir resolver, shared with cs-spec), spec_dir_test.py, launch pre-flight helpers
 ```
 
 ## Skills
@@ -105,7 +105,7 @@ Skills auto-detect missing MCPs and offer to install via `AskUserQuestion`. If s
 - Spec skill (`cs-spec`) writes documents only (issue body, optional spec file / decision record via a docs PR) — never product code, never dispatches; asks before publishing
 - Feature skill (`cs-feature`) modifies source code — only after an approved plan (or a posted plan under `--auto`), always on a feature branch, never merges
 - Orchestrator (`cs-orchestrator`) never writes product code; it creates worktrees/branches, labels issues, and merges green PRs (unless `orchestrator.autoMerge` is `false`). Workers (`cs-worker`) are fenced by `orchestrator/scripts/fence.py` and never merge
-- Skill-bundled scripts are referenced as `${CLAUDE_SKILL_DIR}/scripts/...`; run `python3 skills/orchestrator/scripts/fence_test.py` after changing `fence.py`, and `bash skills/orchestrator/scripts/wiring_test.sh` after changing the `emit` calls in `watch.sh` / `dispatch.sh`, and `python3 skills/orchestrator/scripts/dispatch_test.py` after changing the worker environment or launcher in `dispatch.sh`
+- Skill-bundled scripts are referenced as `${CLAUDE_SKILL_DIR}/scripts/...`; run `python3 skills/orchestrator/scripts/fence_test.py` after changing `fence.py`, and `bash skills/orchestrator/scripts/wiring_test.sh` after changing the `emit` calls in `watch.sh` / `dispatch.sh`, and `python3 skills/orchestrator/scripts/dispatch_test.py` after changing the worker environment or launcher in `dispatch.sh`, and `python3 skills/orchestrator/scripts/spec_dir_test.py` after changing `spec_dir.py` (the `specDir` grammar is implemented there only — cs-spec calls it as `${CLAUDE_SKILL_DIR}/../orchestrator/scripts/spec_dir.py`)
 - Prioritizes HIGH/CRITICAL findings; lower-severity issues included where appropriate
 - Respects `$ARGUMENTS` to analyze specific directories
 - All user confirmations use **interactive selectors** (`AskUserQuestion`), not text prompts — patterns inlined into each skill
