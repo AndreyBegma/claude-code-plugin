@@ -43,6 +43,7 @@ command, not a question.
 |---|---|
 | the repository | the git toplevel of the current directory (the main checkout, not a worktree) |
 | the scripts | `${CLAUDE_SKILL_DIR}/scripts/` — `dispatch.sh`, `watch.sh`, `fence.py`, `emit.py` |
+| worker environment | forwarded by `dispatch.sh` — see *Telemetry and launcher* below |
 | the event log | `<git-common-dir>/cs-orchestrator/events.jsonl` and `state.json`, written only by `emit.py` — contract in `EVENTS.md` beside this file |
 | worker worktrees | `<parent of repo>/.wt-<repo name>-<slot>` |
 | worker sessions | tmux `cs-<slot>`, Remote Control `cs-<slot>` |
@@ -82,6 +83,16 @@ board.
 | `autoMerge` | `true`. `false` turns Phase 8 step 1 into "tell the person which pull requests are green" |
 | `defaultModel` | `sonnet` — used only when Phase 4 genuinely cannot tell |
 | `triageSkill` | none. A skill to run in a subagent when the queue is dry (e.g. an error-tracker triage that files bug issues) |
+
+### Telemetry and launcher
+
+Export `OTEL_EXPORTER_OTLP_ENDPOINT` (and optional `AGENTDOCK_PROJECT` / `AGENTDOCK_RUN`) in the orchestrator's environment to have every worker send OpenTelemetry tagged with its slot and issue. `CS_CLAUDE_BIN` names a different `claude` executable. Profiles are chosen with `CLAUDE_CONFIG_DIR`, which workers inherit.
+
+- **Forwarded, not inherited.** A tmux session gets the tmux server's environment, so `dispatch.sh` passes an allowlist with `-e`: the `OTEL_EXPORTER_OTLP_*`, `OTEL_*_EXPORTER`, `OTEL_*_EXPORT_INTERVAL`, `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS`, `CLAUDE_CODE_ENABLE_TELEMETRY` and `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA` variables that are set, and every `AGENTDOCK_*`. Nothing else is forwarded; the exact list is in the `dispatch.sh` header.
+- **Switch.** With an endpoint set and `CLAUDE_CODE_ENABLE_TELEMETRY` unset, dispatch sets it to `1` and defaults `OTEL_LOGS_EXPORTER` and `OTEL_METRICS_EXPORTER` to `otlp`. Without an endpoint nothing changes.
+- **Tags.** `OTEL_RESOURCE_ATTRIBUTES` keeps any inherited value and appends `agentdock.project` (`AGENTDOCK_PROJECT`, else parsed from `origin`), `agentdock.slot`, `agentdock.issue` (digits of an `i<n>` slot, else the brief's `Issue:` line) and `agentdock.run` (`AGENTDOCK_RUN`, else `<slot>-<YYYYMMDDHHMMSS>`). The keys are a correlation convention any collector may use.
+- **Launcher.** `CS_CLAUDE_BIN` is one executable path or name, used for the pre-flight and the launch. A value with spaces (a shell function such as `claude rc`) is refused; select the profile with `CLAUDE_CONFIG_DIR`.
+- **No secrets on stdout.** The launch line ends `telemetry on → <host:port>` or `telemetry off`; `OTEL_EXPORTER_OTLP_HEADERS` is never printed. `CS_DISPATCH_DRY_RUN=1` prints the tmux command with header values redacted and exits before the worktree exists.
 
 ## The standing obligation — read this before anything else
 
