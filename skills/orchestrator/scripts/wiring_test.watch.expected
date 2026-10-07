@@ -1,0 +1,19 @@
+TRAILER s2 <sha>
+PR-CHANGED 7 b1 FAILURE
+PR-CHANGED 8 b2
+PROMPT foreign
+PROMPT s1
+PR-CHANGED 8 b2 PENDING
+PR-GONE 7 b1
+QUOTA-HIT s2
+SESSIONS-CHANGED was[foreign s1 s2 ] now[foreign s1 s3 ]
+IDLE foreign
+REPLY-CHANGED s1: ## plan ready
+IDLE s3
+IDLE s1
+SESSIONS-CHANGED was[foreign s1 s3 ] now[foreign late s1 s3 ]
+QUOTA-HIT s1
+IDLE late
+QUOTA-HIT s1
+HEARTBEAT 12:00 slots[foreign late s1 s3 ]
+SESSIONS-CHANGED was[foreign late s1 s3 ] now[s1 s3 ]

@@ -67,6 +67,8 @@ Then report, by writing `.orchestrator-reply.md` in the worktree root:
 <slot> · #<issue> · <branch> · <worktree>
 ```
 
+Then emit that checkpoint as an event (Step 3, *Each checkpoint is also an event*).
+
 **That file is the channel, in both directions.** Do not `SendMessage` the
 orchestrator: peer messages are held for the person's approval and expire
 unread. The orchestrator's watch sees every write to the reply file within a
@@ -136,6 +138,36 @@ watch can name it:
 Nothing between checkpoints. A worker that streams progress is noise multiplied
 by the number of workers.
 
+### Each checkpoint is also an event
+
+Right after appending a checkpoint heading — `picked up` in Step 0 included —
+write the same checkpoint to the fleet's machine-readable log, as **its own plain
+`Bash` call**:
+
+```sh
+python3 "$CS_EMIT" slot.checkpoint checkpoint=<id> summary="<one paragraph>" [pr:=<number>] [url=<pull request url>]
+```
+
+| Reply heading | `checkpoint=` |
+|---|---|
+| `picked up` | `picked_up` |
+| `plan ready` | `plan_ready` |
+| `implementation done` | `implementation_done` |
+| `pull request open` | `pr_open` — with `pr:=<number>` and `url=` |
+| `blocked` | `blocked` |
+| `misclassified` | `misclassified` |
+
+`summary` is what the heading says in one paragraph (≤ 2 KiB; longer is
+truncated). `implementation_done` may add `'checks:=[{"cmd":"<command>","ok":true}]'`.
+`dispatch.sh` exported `CS_EMIT`, `CS_REPO`, `CS_SLOT` and `CS_ISSUE` into this
+session, so nothing else is needed — no slot, no issue, no path.
+
+**If `CS_EMIT` is unset** (a worker started by hand), skip the call silently; the
+reply file is the whole report. `emit.py` never fails: an `emit:` line on stderr
+is not a reason to stop or to report `blocked`. It writes only to its own fixed
+log, so the ownership fence lets the call through; never redirect its output
+into a file.
+
 ### `misclassified` — the one report about you
 
 The orchestrator chose your model from what the slot looked like on paper:
@@ -173,7 +205,7 @@ harness reminder says later; a commit that already carries one is rewritten
 (`git commit --amend` / `git rebase` with an edited message) and pushed with
 `--force-with-lease` before you report.
 
-Then append the merge summary:
+Then append the merge summary (and emit the `pr_open` checkpoint, with `pr:=` and `url=`):
 
 ```md
 ## pull request open — <url>
