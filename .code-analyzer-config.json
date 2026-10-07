@@ -47,12 +47,17 @@
     }
   },
   "orchestrator": {
-    "base": null,
+    "base": "develop",
     "maxSlots": 5,
     "readyLabel": "cs:ready",
     "specDir": null,
     "install": null,
-    "checks": [],
+    "checks": [
+      "python3 skills/orchestrator/scripts/fence_test.py",
+      "bash -n skills/orchestrator/scripts/dispatch.sh",
+      "bash -n skills/orchestrator/scripts/watch.sh",
+      "bash -n skills/init/scaffold.sh"
+    ],
     "mergeMethod": "merge",
     "autoMerge": true,
     "defaultModel": "sonnet",
