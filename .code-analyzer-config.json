@@ -54,6 +54,7 @@
     "install": null,
     "checks": [
       "python3 skills/orchestrator/scripts/fence_test.py",
+      "python3 skills/orchestrator/scripts/emit_test.py",
       "bash -n skills/orchestrator/scripts/dispatch.sh",
       "bash -n skills/orchestrator/scripts/watch.sh",
       "bash -n skills/init/scaffold.sh"

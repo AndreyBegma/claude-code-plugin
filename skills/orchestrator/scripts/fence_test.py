@@ -256,6 +256,34 @@ SIGNAL_CASES = [
 ]
 
 
+# #5 — the worker reports each checkpoint through `emit.py`, which appends to
+# `<git-common-dir>/cs-orchestrator/` — outside the worktree, on purpose. No
+# fence exception allows it: `python3 <file> args…` names no write target the
+# fence can see, and `emit.py` fixes its own target and takes no path. These
+# cases lock that in, so a later fence change cannot silently cut the channel,
+# and so the redirect and inline-code rules still hold around it.
+EMIT_CASES = [
+    ("emit through $CS_EMIT is allowed",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=plan_ready summary=x'),
+     "allow", ""),
+    ("emit through an absolute path is allowed",
+     *bash("python3 /opt/code-sentinel/skills/orchestrator/scripts/emit.py "
+           "slot.checkpoint checkpoint=plan_ready summary=x"), "allow", ""),
+    ("emit with a quoted summary and a JSON value is allowed",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=pr_open '
+           '"summary=opened, checks green" pr:=51'), "allow", ""),
+    ("emit with stderr dropped is allowed",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=blocked summary=x 2>/dev/null'),
+     "allow", ""),
+    ("emit redirected into a file outside the fence is still denied",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=plan_ready summary=x '
+           '> owned-elsewhere.txt'), "deny", "ownership fence"),
+    ("python3 -c is still denied beside emit",
+     *bash("python3 -c 'import emit; emit.emit(\"pane.idle\", {})'"),
+     "deny", "cannot tell what"),
+]
+
+
 # BUG-20260829-003 — `Bash` persists a `cd` for the rest of the session, and
 # the harness hands the hook that moved `cwd` on every later tool call, not
 # only `Bash`'s own. A hook that looked for the brief only at `cwd` stopped
@@ -672,6 +700,9 @@ def main():
         # BUG-20260902-001 — process signals are a shape the fence knows now.
         run_cases(root, SIGNAL_CASES, failures)
 
+        # #5 — the worker's `emit.py` checkpoint call passes the fence.
+        run_cases(root, EMIT_CASES, failures)
+
         # BUG-20260829-003 — `cwd` moved by a `cd` no longer loses the brief.
         run_cases(root, CWD_CASES, failures, cwd=os.path.join(root, "apps", "atlas"))
 
@@ -750,7 +781,8 @@ def main():
         for line in failures:
             print(f"  - {line}")
         return 1
-    total = (len(CASES) + len(SIGNAL_CASES) + len(CWD_CASES) + len(ANNOTATED_CASES)
+    total = (len(CASES) + len(SIGNAL_CASES) + len(EMIT_CASES) + len(CWD_CASES)
+             + len(ANNOTATED_CASES)
              + len(CONTRADICTION_CASES) + len(CHECK_CASES) + len(SECOND_REPO_CASES)
              + len(ISSUE_CASES) + len(DOUBLESTAR_MIDDLE_CASES) + 2)
     print(f"{total} passed")
