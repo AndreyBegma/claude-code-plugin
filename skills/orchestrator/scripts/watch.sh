@@ -46,6 +46,53 @@ resolve_wt() {
 
 set -u
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Every stdout line above is also written to the event log (EVENTS.md), beside
+# the echo and never instead of it. Synchronous: emit.py is fast, one call per
+# real event, and a background job would outlive the poll that raised it.
+# emit.py never fails its caller, and nothing here may reach stdout — stdout is
+# the orchestrator's alarm and stays exactly as documented in the header.
+emit() {
+  CS_REPO="$REPO_DIR" python3 "$HERE/emit.py" "$@" </dev/null >/dev/null 2>&1 || true
+}
+
+# Several fleets can share one tmux server, so `tmux ls` lists other projects'
+# `cs-*` sessions too. The stdout lines keep reporting them; the log, which is
+# this repository's, does not. A slot is this repository's when its worktree
+# (`<parent>/.wt-<repo>-<slot>`) exists. `own_seen` remembers slots that had
+# one, so a slot whose worktree is removed in the same wake it dies still gets
+# its `session.vanished`.
+declare -A own_seen
+is_own_slot() {
+  [ -n "${own_seen[$1]:-}" ] && return 0
+  [ -n "$(resolve_wt "$1")" ] && { own_seen[$1]=1; return 0; }
+  return 1
+}
+
+# `["a","b"]` of this repository's slots among the names given. Slot names are
+# lowercase letters, digits and '-' (dispatch.sh), so nothing needs escaping.
+own_slots_json() {
+  local s out=""
+  for s in "$@"; do is_own_slot "$s" && out="${out:+$out,}\"$s\""; done
+  printf '[%s]' "$out"
+}
+
+# The rollup of the comma-separated check states `gh pr list` prints.
+rollup_of() {
+  local checks="$1" c state=green
+  [ -n "$checks" ] || { echo pending; return; }
+  for c in ${checks//,/ }; do
+    case "$c" in
+      FAILURE|ERROR|CANCELLED|TIMED_OUT|STARTUP_FAILURE|ACTION_REQUIRED|STALE) echo red; return ;;
+      PENDING|IN_PROGRESS|QUEUED|EXPECTED|WAITING|REQUESTED) state=pending ;;
+    esac
+  done
+  # A check still running prints an empty conclusion: ",SUCCESS" has one.
+  case ",$checks," in *,,*) state=pending ;; esac
+  echo "$state"
+}
+
 slots() { tmux ls 2>/dev/null | cut -d: -f1 | grep '^cs-' | sed 's/^cs-//' | sort; }
 
 # Pure classifier, so a fixture pane capture can drive it without a real tmux
@@ -142,7 +189,7 @@ STATE=${TMPDIR:-/tmp}/cs-watch.$$
 mkdir -p "$STATE"
 trap 'rm -rf "$STATE"' EXIT
 
-declare -A reply_mtime idle_count prompt_seen head_sha
+declare -A reply_mtime idle_count prompt_seen head_sha quota_seen
 prev_sessions=""
 last_event=$(date +%s)
 
@@ -155,22 +202,41 @@ while true; do
     -q '.[] | "\(.number) \(.headRefName) \([.statusCheckRollup[]?|.conclusion // .state]|join(","))"' \
     > "$STATE/prs.now" 2>/dev/null || cp "$STATE/prs.prev" "$STATE/prs.now" 2>/dev/null || : > "$STATE/prs.now"
   if [ -f "$STATE/prs.prev" ]; then
-    while read -r line; do [ -n "$line" ] && { echo "PR-CHANGED $line"; fired=1; }; done \
-      < <(comm -13 <(sort "$STATE/prs.prev") <(sort "$STATE/prs.now"))
-    while read -r line; do [ -n "$line" ] && { echo "PR-GONE $line"; fired=1; }; done \
-      < <(comm -23 <(cut -d' ' -f1,2 "$STATE/prs.prev" | sort) <(cut -d' ' -f1,2 "$STATE/prs.now" | sort))
+    while read -r line; do
+      [ -n "$line" ] && {
+        echo "PR-CHANGED $line"; fired=1
+        read -r pr_n pr_branch pr_checks <<<"$line"
+        emit pr.checks_changed "pr:=$pr_n" "branch=$pr_branch" "rollup=$(rollup_of "$pr_checks")" "raw=$pr_checks"
+      }
+    done < <(comm -13 <(sort "$STATE/prs.prev") <(sort "$STATE/prs.now"))
+    while read -r line; do
+      [ -n "$line" ] && {
+        echo "PR-GONE $line"; fired=1
+        read -r pr_n pr_branch <<<"$line"
+        emit pr.closed "pr:=$pr_n" "branch=$pr_branch"
+      }
+    done < <(comm -23 <(cut -d' ' -f1,2 "$STATE/prs.prev" | sort) <(cut -d' ' -f1,2 "$STATE/prs.now" | sort))
   fi
   cp "$STATE/prs.now" "$STATE/prs.prev"
 
   # --- sessions
   cur=$(slots | tr '\n' ' ')
   if [ "$cur" != "$prev_sessions" ] && [ -n "$prev_sessions$cur" ]; then
-    [ -n "$prev_sessions" ] && { echo "SESSIONS-CHANGED was[$prev_sessions] now[$cur]"; fired=1; }
+    [ -n "$prev_sessions" ] && {
+      echo "SESSIONS-CHANGED was[$prev_sessions] now[$cur]"; fired=1
+      for s in $prev_sessions; do
+        case " $cur " in *" $s "*) ;; *) is_own_slot "$s" && emit session.vanished "name=cs-$s" via=watch --slot "$s" ;; esac
+      done
+      for s in $cur; do
+        case " $prev_sessions " in *" $s "*) ;; *) is_own_slot "$s" && emit session.appeared "name=cs-$s" via=watch --slot "$s" ;; esac
+      done
+    }
   fi
   prev_sessions=$cur
 
   for s in $cur; do
     wt="$(resolve_wt "$s")"
+    [ -n "$wt" ] && own_seen[$s]=1
 
     # --- reply files
     if [ -n "$wt" ]; then
@@ -189,20 +255,27 @@ while true; do
       sha=$(git -C "$wt" rev-parse HEAD 2>/dev/null || true)
       if [ -n "$sha" ] && [ "$sha" != "${head_sha[$s]:-}" ]; then
         msg=$(git -C "$wt" log --format=%B -1 HEAD 2>/dev/null || true)
-        trailer_in_message "$msg" && { echo "TRAILER $s $sha"; fired=1; }
+        trailer_in_message "$msg" && { echo "TRAILER $s $sha"; fired=1; emit commit.trailer_found "sha=$sha" via=watch --slot "$s"; }
         head_sha[$s]=$sha
       fi
     fi
 
     # --- pane: quota banner, and an idle prompt
     pane=$(tmux capture-pane -p -t "cs-$s" 2>/dev/null || true)
-    if grep -q "hit your weekly limit" <<<"$pane"; then echo "QUOTA-HIT $s"; fired=1; fi
+    if grep -q "hit your weekly limit" <<<"$pane"; then
+      echo "QUOTA-HIT $s"; fired=1
+      # The banner stays up for hours and stdout repeats on every poll; the log
+      # records the moment it appeared.
+      [ -n "${quota_seen[$s]:-}" ] || { quota_seen[$s]=1; is_own_slot "$s" && emit pane.quota_hit via=watch --slot "$s"; }
+    else
+      quota_seen[$s]=""
+    fi
     read -r event ic ps < <(classify_pane "$pane" "${idle_count[$s]:-0}" "${prompt_seen[$s]:-0}")
     idle_count[$s]=$ic
     prompt_seen[$s]=$ps
     case "$event" in
-      PROMPT) echo "PROMPT $s"; fired=1 ;;
-      IDLE)   echo "IDLE $s"; fired=1 ;;
+      PROMPT) echo "PROMPT $s"; fired=1; is_own_slot "$s" && emit pane.prompt via=watch --slot "$s" ;;
+      IDLE)   echo "IDLE $s"; fired=1; is_own_slot "$s" && emit pane.idle via=watch --slot "$s" ;;
     esac
   done
 
@@ -211,6 +284,7 @@ while true; do
   if [ "$fired" -eq 1 ]; then last_event=$now
   elif [ $((now - last_event)) -ge "$HEARTBEAT" ]; then
     echo "HEARTBEAT $(date +%H:%M) slots[$cur]"; last_event=$now
+    emit orchestrator.heartbeat "slots:=$(own_slots_json $cur)"
   fi
 
   sleep "$POLL"

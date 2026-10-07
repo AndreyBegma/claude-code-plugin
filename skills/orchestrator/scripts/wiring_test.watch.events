@@ -1,0 +1,13 @@
+commit.trailer_found s2 watch
+pr.checks_changed - red
+pr.checks_changed - pending
+pane.prompt s1 watch
+pr.checks_changed - pending
+pr.closed -
+pane.quota_hit s2 watch
+session.vanished s2 watch
+session.appeared s3 watch
+pane.idle s3 watch
+pane.idle s1 watch
+pane.quota_hit s1 watch
+orchestrator.heartbeat -

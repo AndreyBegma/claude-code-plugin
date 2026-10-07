@@ -110,6 +110,7 @@ fetch_base() {
   return 1
 }
 
+REUSED=false
 if [ ! -d "$WT" ]; then
   fetch_base || exit 1
   if git -C "$REPO" show-ref --verify --quiet "refs/heads/$BRANCH"; then
@@ -126,6 +127,7 @@ else
     exit 1
   fi
   echo "dispatch: reusing existing worktree $WT on $HAVE"
+  REUSED=true
 fi
 
 # Launch dialogs nobody in a detached pane can answer. Trust is recorded the
@@ -220,8 +222,37 @@ GIT_HTTPS="GIT_CONFIG_PARAMETERS=\"'url.https://github.com/.insteadOf=git@github
 # just wrote, not whichever one the tmux server was started with. `PATH` for the
 # same reason: the tmux server's PATH is whatever it was started with, and the
 # worker needs the dispatcher's toolchain (nvm, bun, pyenv…). Needs tmux 3.2.
+# `CS_EMIT` / `CS_REPO` / `CS_SLOT` / `CS_ISSUE` are how the fenced worker reaches
+# `emit.py` (EVENTS.md): the absolute path, so no `$PATH` or cwd lookup, and the
+# main checkout, so it lands in the same log as everyone else. A brief without
+# an `Issue:` line leaves `CS_ISSUE` empty — not an error.
+ISSUE="$(sed -n 's/^Issue:[[:space:]]*#\{0,1\}\([0-9][0-9]*\).*/\1/p' "$BRIEF" | head -n 1 || true)"
+
 tmux new-session -d -s "$NAME" -c "$WT" -e "CLAUDE_CONFIG_DIR=$CLAUDE_CFG_DIR" -e "PATH=$PATH" \
+  -e "CS_EMIT=$HERE/emit.py" -e "CS_REPO=$REPO" -e "CS_SLOT=$SLOT" -e "CS_ISSUE=$ISSUE" \
   "${HOLD}${GIT_HTTPS} claude --remote-control $NAME -n $NAME --model $MODEL --permission-mode bypassPermissions --settings '$SETTINGS_FILE' --append-system-prompt \"\$(cat '$FENCE_PROMPT_FILE')\" '$WORKER_CMD'"
+
+# The launch is on record. Everything the brief says about the slot goes into
+# one slot.dispatched; emit.py never fails its caller, so neither does this.
+FENCE_LISTS="$(python3 -c '
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import fence
+owns, never = fence.parse_fence(open(sys.argv[2]).read())
+print(json.dumps(owns))
+print(json.dumps(never))
+' "$HERE" "$BRIEF" 2>/dev/null || true)"
+OWNS="$(sed -n 1p <<<"$FENCE_LISTS")"; NEVER="$(sed -n 2p <<<"$FENCE_LISTS")"
+MODEL_WHY="$(sed -n 's/^Model:[^—]*—[[:space:]]*//p' "$BRIEF" | head -n 1 || true)"
+EMIT_ARGS=(slot.dispatched "branch=$BRANCH" "worktree=$WT" "model=$MODEL" "base=$BASE"
+  "brief=$WT/.orchestrator-brief.md" "reusedWorktree:=$REUSED"
+  "owns:=${OWNS:-[]}" "never:=${NEVER:-[]}")
+[ -z "$MODEL_WHY" ] || EMIT_ARGS+=("modelWhy=$MODEL_WHY")
+LEAD="$(sed -n 's/^Lead:[[:space:]]*\([A-Za-z]*\).*/\1/p' "$BRIEF" | head -n 1 || true)"
+if [ -n "$LEAD" ]; then
+  case "$LEAD" in [Yy]es|[Tt]rue) EMIT_ARGS+=("lead:=true") ;; *) EMIT_ARGS+=("lead:=false") ;; esac
+fi
+CS_REPO="$REPO" CS_SLOT="$SLOT" CS_ISSUE="$ISSUE" python3 "$HERE/emit.py" "${EMIT_ARGS[@]}" || true
 
 if [ "$DELAY" -gt 0 ]; then
   echo "$NAME · $MODEL · $WT · $(git -C "$WT" branch --show-current) · starts in ${DELAY}s · stop with: tmux kill-session -t $NAME"

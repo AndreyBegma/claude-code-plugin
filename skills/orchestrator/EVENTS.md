@@ -100,6 +100,12 @@ requires `slot` in the envelope.
 | `pane.prompt` / `pane.idle` / `pane.quota_hit` | watch.sh on `PROMPT` / `IDLE` / `QUOTA-HIT` | via |
 | `commit.trailer_found` | watch.sh on `TRAILER` | **sha**, via |
 
+`watch.sh` writes per-slot events (`session.*`, `pane.*`, `commit.trailer_found`)
+and its heartbeat's `slots` only for this repository's slots — those whose
+worktree `<parent>/.wt-<repo>-<slot>` exists — because other projects' `cs-*`
+sessions share the tmux server; its stdout still reports them all.
+`pane.quota_hit` is written when the banner appears, not on every poll it stays up.
+
 Pane and session events from `watch.sh` duplicate what an external observer
 (AgentDock's runner) also sees. They carry `data.via: "watch"` so a consumer can
 prefer its own observation.
