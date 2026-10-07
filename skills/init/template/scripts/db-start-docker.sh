@@ -3,6 +3,11 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+if [ ! -f "$ROOT/docker/.env" ]; then
+  echo "docker/.env is missing — copy docker/.env.example and set POSTGRES_PASSWORD (match apps/api/.env)." >&2
+  exit 1
+fi
+
 echo "Starting PostgreSQL..."
 docker compose -f "$ROOT/docker/docker-compose.yml" up -d
 

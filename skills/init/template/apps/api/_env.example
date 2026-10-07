@@ -3,4 +3,4 @@ APP_ENV=development
 API_URL=http://localhost:__API_PORT__
 WEB_URL=http://localhost:__WEB_PORT__
 
-DATABASE_URL="postgresql://postgres:__DB_PASSWORD__@localhost:__DB_PORT__/__DB_NAME__?schema=public"
+DATABASE_URL="postgresql://postgres:change-me@localhost:__DB_PORT__/__DB_NAME__?schema=public"
