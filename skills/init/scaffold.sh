@@ -52,13 +52,13 @@ mv _code-analyzer-config.json .code-analyzer-config.json
 mv _CLAUDE.md CLAUDE.md
 mv apps/api/_env.example apps/api/.env.example
 mv apps/web/_env.example apps/web/.env.example
+mv docker/_env.example docker/.env.example
 
-grep -rlE '__(SCOPE|TITLE|DB_NAME|DB_PASSWORD|DB_PORT|API_PORT|WEB_PORT|BUN_VERSION|NODE_MAJOR)__' . | while read -r f; do
+grep -rlE '__(SCOPE|TITLE|DB_NAME|DB_PORT|API_PORT|WEB_PORT|BUN_VERSION|NODE_MAJOR)__' . | while read -r f; do
   sed -i.bak \
     -e "s|__SCOPE__|$SCOPE|g" \
     -e "s|__TITLE__|$TITLE|g" \
     -e "s|__DB_NAME__|$DB_NAME|g" \
-    -e "s|__DB_PASSWORD__|$DB_PASSWORD|g" \
     -e "s|__DB_PORT__|$DB_PORT|g" \
     -e "s|__API_PORT__|$API_PORT|g" \
     -e "s|__WEB_PORT__|$WEB_PORT|g" \
@@ -68,7 +68,10 @@ grep -rlE '__(SCOPE|TITLE|DB_NAME|DB_PASSWORD|DB_PORT|API_PORT|WEB_PORT|BUN_VERS
   rm -f "$f.bak"
 done
 
-cp apps/api/.env.example apps/api/.env
+# The random password lives only in these two git-ignored files; the committed
+# examples keep "change-me".
+sed "s|change-me|$DB_PASSWORD|g" docker/.env.example > docker/.env
+sed "s|change-me|$DB_PASSWORD|g" apps/api/.env.example > apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 chmod +x scripts/db-start-docker.sh
 
@@ -80,4 +83,4 @@ fi
 
 echo "scaffolded $TITLE (@$SCOPE) in $(pwd)"
 echo "  api :$API_PORT · web :$WEB_PORT · postgres :$DB_PORT (db $DB_NAME, container $SCOPE-postgres)"
-echo "  local db password written to apps/api/.env and docker/docker-compose.yml"
+echo "  local db password written to docker/.env and apps/api/.env (both git-ignored)"

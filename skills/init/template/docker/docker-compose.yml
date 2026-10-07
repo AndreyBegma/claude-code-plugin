@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: __DB_PASSWORD__
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in docker/.env}
       POSTGRES_DB: __DB_NAME__
     ports:
       - "__DB_PORT__:5432"

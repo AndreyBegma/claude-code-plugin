@@ -1,0 +1,3 @@
+# Local PostgreSQL password. Copy to docker/.env (git-ignored) and set a real value;
+# it must match the password in DATABASE_URL in apps/api/.env.
+POSTGRES_PASSWORD=change-me

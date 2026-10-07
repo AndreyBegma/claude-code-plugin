@@ -16,6 +16,8 @@ bun run start:dev    # api → http://localhost:__API_PORT__  ·  web → http:/
 
 Health check: `curl http://localhost:__API_PORT__/health`
 
+On a fresh clone, create the git-ignored env files first: copy `docker/.env.example` to `docker/.env` and `apps/api/.env.example` to `apps/api/.env`, and set the same database password in `POSTGRES_PASSWORD` and `DATABASE_URL`. `db:setup` stops with an error if `docker/.env` is missing.
+
 ## Workspaces
 
 | Path | Package | Stack |
