@@ -102,6 +102,15 @@ and links, then any specification it links. Project rules override anything
 generic here. Do not invent architecture: if the issue does not cover something
 you need, that is a question for the orchestrator, not a decision for you.
 
+**A `Spec:` line in the brief** — `Spec: <GitHub URL> (local read-only copy:
+<path>)` — is the specification, and it outranks your reading of the issue
+summary. Read the local copy with `Read` (it is the exact merged text; the URL
+is what you cite), and quote the parts your plan relies on into the plan. It is
+**read-only**: it lives outside your worktree, often in another repository, and
+the fence refuses any write there. If the spec is wrong or needs a change,
+report `blocked` with the proposed change as text — the spec changes through a
+docs pull request someone else opens, never through yours.
+
 ## Step 2 — Work it, under the entry skill
 
 Run `/code-sentinel:feature #<issue> --worker`, in full.
