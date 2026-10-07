@@ -42,7 +42,9 @@ command, not a question.
 | What | Where |
 |---|---|
 | the repository | the git toplevel of the current directory (the main checkout, not a worktree) |
-| the scripts | `${CLAUDE_SKILL_DIR}/scripts/` — `dispatch.sh`, `watch.sh`, `fence.py`, `emit.py` |
+| the scripts | `${CLAUDE_SKILL_DIR}/scripts/` — `dispatch.sh`, `watch.sh`, `fence.py`, `emit.py`, `spec_dir.py` |
+| specifications | wherever `specDir` resolves (`spec_dir.py --resolve`): the main checkout, a sibling documentation repository, or a clone of one in `<git-common-dir>/cs-orchestrator/specs/<owner>-<repo>/` — inside `.git`, never committed, removable at any time |
+| the spec a brief points at | `<git-common-dir>/cs-orchestrator/specs/_read/<file>` — a read-only snapshot `spec_dir.py --read` writes from `origin/<branch>` |
 | worker environment | forwarded by `dispatch.sh` — see *Telemetry and launcher* below |
 | the event log | `<git-common-dir>/cs-orchestrator/events.jsonl` and `state.json`, written only by `emit.py` — contract in `EVENTS.md` beside this file |
 | worker worktrees | `<parent of repo>/.wt-<repo name>-<slot>` |
@@ -77,7 +79,7 @@ board.
 | `base` | origin's default branch |
 | `maxSlots` | `5` — a ceiling, never a target |
 | `readyLabel` | `cs:ready` |
-| `specDir` | none — the issue body is the specification |
+| `specDir` | none — the issue body is the specification. Otherwise one of: a path relative to the main checkout (`docs/specs`); a path outside it (`../denitsa-documentation/prs`, or absolute); `github:<owner>/<repo>[/<subpath>]`, or the `https://github.com/<owner>/<repo>[/tree/<branch>/<subpath>]` URL of it. For `github:` a sibling clone at `<parent of the main checkout>/<repo>` whose `origin` names the same repository is used, else the repository is cloned into `.git` (*Where things are*). Specs are read from **`origin/<branch>` only, after a fetch** — never a working tree. `<branch>` is the spec repository's default branch; for a path inside the main checkout it is `base` (fallback: the default branch), because a docs pull request in the code repository lands on the base — a decision #7 left open. A `/tree/<branch>/` in a URL is reported as `ignoredBranch` and not followed. Non-GitHub forges are refused |
 | `install`, `checks` | detected from the lockfile and `package.json` scripts / `Makefile` / `pyproject.toml` / `Cargo.toml` / `go.mod` |
 | `mergeMethod` | `merge` (`squash` / `rebase` allowed) |
 | `autoMerge` | `true`. `false` turns Phase 8 step 1 into "tell the person which pull requests are green" |
@@ -136,7 +138,8 @@ each held row waits on, and **keep the watch armed**.
 ## The one rule this skill exists to enforce
 
 **Nothing here is invented.** The queue is the issues with the ready label; the
-specification is the issue body (and `specDir/<issue>-*.md` if configured); the
+specification is the issue body (and the one `<issue>-*.md` that
+`spec_dir.py --read` finds, if `specDir` is configured); the
 gates are the ones the issue states. If you find yourself proposing work that is
 not an issue, you have stopped orchestrating and started designing the product.
 File it with `/code-sentinel:issue --auto` **without** the ready label and say
@@ -178,7 +181,7 @@ project's `CLAUDE.md` says otherwise.
    configuration are resolved (see *Events* below):
 
    ```sh
-   python3 ${CLAUDE_SKILL_DIR}/scripts/emit.py orchestrator.started session=<your ListAgents name> 'config:={"base":"<base>","maxSlots":<n>,"readyLabel":"<label>","specDir":null,"checks":["<check>"],"mergeMethod":"<method>","autoMerge":true}'
+   python3 ${CLAUDE_SKILL_DIR}/scripts/emit.py orchestrator.started session=<your ListAgents name> 'config:={"base":"<base>","maxSlots":<n>,"readyLabel":"<label>","specDir":<"<specDir>" or null>,"checks":["<check>"],"mergeMethod":"<method>","autoMerge":true}'
    ```
 
 ### Events
@@ -254,7 +257,22 @@ For each ready-labelled issue, assign exactly one state:
 | `READY` | every `Depends on #<m>` in its body is **closed by a merged pull request**, and no gate waits on a person |
 | `BLOCKED — work` | a dependency is open, or an open unmerged pull request touches a file it needs. Name it |
 | `BLOCKED — person` | label `cs:needs-person`, or a `Gate:` line a person clears. Quote it |
-| `NO SPEC` | the body does not say what done looks like (no acceptance criteria, no reproduction for a bug) — not dispatchable. Comment on the issue asking for it, remove the ready label, and say it needs `/code-sentinel:spec` |
+| `NO SPEC` | the body does not say what done looks like (no acceptance criteria, no reproduction for a bug), or `specDir` is set and `spec_dir.py --read` finds no single spec for it (below) — not dispatchable. Comment on the issue asking for it, remove the ready label, and say it needs `/code-sentinel:spec` |
+
+**With `specDir` set**, read the spec for each candidate — its own `Bash` call,
+from the main checkout. It fetches the spec repository first, every time:
+
+```sh
+python3 ${CLAUDE_SKILL_DIR}/scripts/spec_dir.py --read <n>
+```
+
+| Exit | State |
+|---|---|
+| `0` | the spec exists on `origin/<branch>` — keep its `briefLine` for Phase 6 |
+| `2` `no-spec` | `NO SPEC`. The comment quotes `lookedFor` — which file, which directory, which branch of which repository. A spec on an unmerged docs branch, or only in someone's working tree, is not a spec yet |
+| `3` `ambiguous` | `NO SPEC`, and the comment names every file in `files` — one issue, one spec |
+| `4` `unreachable` | `BLOCKED — person`: the repository could not be cloned or fetched. The reason is the `gh auth …` command in `message` — a credential is the person's |
+| `1` `config` | `specDir` itself is wrong — say so once, with `message`; every row falls back to `NO SPEC` until it is fixed |
 
 **An issue may carry a `## Parallel plan`** (written by `/code-sentinel:spec`) —
 a table of slots, what each owns (`Touches` → the slot's `owns:` fence), its
@@ -374,6 +392,7 @@ For each slot, in order:
 Orchestrator: <your exact ListAgents session name>
 Repository: <owner/repo>
 Issue: #<n> — <url>
+Spec: <GitHub URL> (local read-only copy: <path>)   ← only with specDir: the `briefLine` from Phase 2's --read, verbatim
 Kind: feature | bug
 Branch: <branch>
 Base: <base>
