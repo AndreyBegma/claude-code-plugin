@@ -34,7 +34,10 @@ Read these if they exist — they are the authority, and you match their shape:
 - decision records: `docs/adr/`, `docs/decisions/`, `decisions.md`, `ADR-*.md`
 - architecture and roadmap docs: `docs/architecture*`, `ROADMAP.md`, `docs/roadmap*`
 - `.code-analyzer-config.json` → `orchestrator.specDir` — where spec files live,
-  if the project keeps them as files (otherwise the issue body is the spec)
+  if the project keeps them as files (otherwise the issue body is the spec). It
+  may name a path in this repository, a path outside it
+  (`../<name>-documentation/prs`) or `github:<owner>/<repo>[/<subpath>]` — never
+  interpret it yourself; `spec_dir.py --resolve` does (Phase 6)
 - open issues and their labels (`gh issue list`)
 
 When the project has none of these, the issue and its comments are the record.
@@ -237,7 +240,7 @@ Where it goes:
 
 | Project keeps | Write |
 |---|---|
-| `orchestrator.specDir` set, or an existing specs folder | `<specDir>/<issue>-<slug>.md`, and the issue body is a summary that links it |
+| `orchestrator.specDir` set, or an existing specs folder | `<issue>-<slug>.md` where `spec_dir.py --write-target` says — possibly in a **separate documentation repository** — and the issue body (in the code repository) is a summary that links the file by its GitHub URL |
 | decision records | a new record, only if Phase 3 found a contradiction or a genuinely new decision |
 | a roadmap doc | amend the existing row, or add one with real dependencies |
 | nothing | the issue body **is** the spec |
@@ -257,9 +260,42 @@ Where it goes:
    `docs/<n>-<slug>` branch and open a pull request — **documentation lands
    first**, so code pull requests link to something that exists. Do not merge it
    yourself unless the person says so.
+
+   With `specDir` set, ask the resolver where the spec goes — run from the code
+   repository, after the issue exists:
+
+   ```sh
+   python3 ${CLAUDE_SKILL_DIR}/../orchestrator/scripts/spec_dir.py --write-target <n> <slug>
+   ```
+
+   It prints `checkout`, `repo`, `defaultBranch`, `branch` (`docs/<n>-<slug>`),
+   `relPath`, `url` and `separate`. Exit `4` is a credential: give the person
+   the `gh auth …` command from `message` and stop this step. Then, **in that
+   repository** — the code repository when `separate` is false, the
+   documentation repository when it is true:
+
+   ```sh
+   git -C <checkout> fetch origin
+   git -C <checkout> worktree add <tmp dir> -b <branch> origin/<defaultBranch>
+   # write <tmp dir>/<relPath> with Write
+   git -C <tmp dir> add <relPath>
+   git -C <tmp dir> commit -m "docs: spec for <owner/code-repo>#<n> — <title>"
+   git -C <tmp dir> push -u origin <branch>
+   gh pr create -R <repo> --base <defaultBranch> --head <branch> --title "docs: spec for <owner/code-repo>#<n>" --body "Spec for https://github.com/<owner/code-repo>/issues/<n>"
+   git -C <checkout> worktree remove <tmp dir>
+   ```
+
+   A temporary worktree, never `git switch` in `<checkout>`: a sibling
+   documentation clone is the person's working copy and may hold their own
+   changes. The issue stays in the code repository; put `url` (the file on the
+   default branch) in its body, and the docs pull request's URL beside it until
+   it merges. ADRs and roadmap rows follow the same rules as before, applied in
+   the repository the resolver named.
 4. **Queue it** only on "Publish and queue": add the ready label
    (`orchestrator.readyLabel`, default `cs:ready`). With a spec in a file, queue
-   only after that docs pull request has merged.
+   only after that docs pull request has merged — in whichever repository it
+   was opened. The orchestrator reads specs from `origin/<branch>` only, so an
+   unmerged spec is `NO SPEC` to it.
 
 Then say, in one block: the issue URL, the spec URL, the slots, the lead, whether
 it is queued, and that `/code-sentinel:orchestrator` is what dispatches it. For a

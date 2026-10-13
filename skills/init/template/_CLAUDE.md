@@ -36,6 +36,6 @@ scripts/      — db-start-docker.sh (up → migrate → seed)
 - Schema changes go through `prisma migrate dev` with a descriptive name; never edit an applied migration.
 - Shared types and pure helpers go in `packages/shared`; it must stay framework-free.
 - API: global `ValidationPipe` (`whitelist`, `forbidNonWhitelisted`) — every input is a DTO with `class-validator` decorators. `helmet` and CORS (`WEB_URL`) are on.
-- Environment: `apps/*/.env` (git-ignored), documented in `.env.example`. Add a variable to the example in the same change that reads it.
+- Environment: `docker/.env` and `apps/*/.env` (git-ignored), documented in `.env.example`. The database password lives only in `docker/.env` and `apps/api/.env` — never in a committed file; the two must match. Add a variable to the example in the same change that reads it.
 - TypeScript strict everywhere; no `any`.
 - Tests: `*.spec.ts` next to the code (api). A bug fix comes with the test that would have caught it.

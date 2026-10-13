@@ -25,8 +25,8 @@ asked, for as long as the queue has rows.**
 | `start` | a full round, then the loop: Phases 0–8 |
 | `status` | **read-only.** Phases 0 and 1 only: what is running, what each slot last reported, what has merged, free capacity. Ask nothing, dispatch nothing, change nothing |
 | `next` | a round on freed capacity. Identical to `start` |
-| `stop <slot>` | `tmux kill-session -t cs-<slot>`. Leave the worktree, the branch and the commits alone — they are the work. Say what that slot last reported and what is now unfinished |
-| `stop all` | the same for every live `cs-*` session. Never remove a worktree here; that belongs to Phase 8, after a merge |
+| `stop <slot>` | `tmux kill-session -t cs-<slot>`. Leave the worktree, the branch and the commits alone — they are the work. Say what that slot last reported and what is now unfinished. Then emit `slot.stopped` (*Events*) |
+| `stop all` | the same for every live `cs-*` session. Never remove a worktree here; that belongs to Phase 8, after a merge. Then emit `slot.stopped` per slot and `orchestrator.stopped` (*Events*) |
 
 A slot named in `stop` that has no live session is not an error — say so and
 move on.
@@ -42,7 +42,11 @@ command, not a question.
 | What | Where |
 |---|---|
 | the repository | the git toplevel of the current directory (the main checkout, not a worktree) |
-| the scripts | `${CLAUDE_SKILL_DIR}/scripts/` — `dispatch.sh`, `watch.sh`, `fence.py` |
+| the scripts | `${CLAUDE_SKILL_DIR}/scripts/` — `dispatch.sh`, `watch.sh`, `fence.py`, `emit.py`, `spec_dir.py` |
+| specifications | wherever `specDir` resolves (`spec_dir.py --resolve`): the main checkout, a sibling documentation repository, or a clone of one in `<git-common-dir>/cs-orchestrator/specs/<owner>-<repo>/` — inside `.git`, never committed, removable at any time |
+| the spec a brief points at | `<git-common-dir>/cs-orchestrator/specs/_read/<file>` — a read-only snapshot `spec_dir.py --read` writes from `origin/<branch>` |
+| worker environment | forwarded by `dispatch.sh` — see *Telemetry and launcher* below |
+| the event log | `<git-common-dir>/cs-orchestrator/events.jsonl` and `state.json`, written only by `emit.py` — contract in `EVENTS.md` beside this file |
 | worker worktrees | `<parent of repo>/.wt-<repo name>-<slot>` |
 | worker sessions | tmux `cs-<slot>`, Remote Control `cs-<slot>` |
 | the round board | `$(git rev-parse --path-format=absolute --git-common-dir)/cs-orchestrator/<YYYY-MM-DD>/` — inside `.git`, never committed |
@@ -75,12 +79,22 @@ board.
 | `base` | origin's default branch |
 | `maxSlots` | `5` — a ceiling, never a target |
 | `readyLabel` | `cs:ready` |
-| `specDir` | none — the issue body is the specification |
+| `specDir` | none — the issue body is the specification. Otherwise one of: a path relative to the main checkout (`docs/specs`); a path outside it (`../denitsa-documentation/prs`, or absolute); `github:<owner>/<repo>[/<subpath>]`, or the `https://github.com/<owner>/<repo>[/tree/<branch>/<subpath>]` URL of it. For `github:` a sibling clone at `<parent of the main checkout>/<repo>` whose `origin` names the same repository is used, else the repository is cloned into `.git` (*Where things are*). Specs are read from **`origin/<branch>` only, after a fetch** — never a working tree. `<branch>` is the spec repository's default branch; for a path inside the main checkout it is `base` (fallback: the default branch), because a docs pull request in the code repository lands on the base — a decision #7 left open. A `/tree/<branch>/` in a URL is reported as `ignoredBranch` and not followed. Non-GitHub forges are refused |
 | `install`, `checks` | detected from the lockfile and `package.json` scripts / `Makefile` / `pyproject.toml` / `Cargo.toml` / `go.mod` |
 | `mergeMethod` | `merge` (`squash` / `rebase` allowed) |
 | `autoMerge` | `true`. `false` turns Phase 8 step 1 into "tell the person which pull requests are green" |
 | `defaultModel` | `sonnet` — used only when Phase 4 genuinely cannot tell |
 | `triageSkill` | none. A skill to run in a subagent when the queue is dry (e.g. an error-tracker triage that files bug issues) |
+
+### Telemetry and launcher
+
+Export `OTEL_EXPORTER_OTLP_ENDPOINT` (and optional `AGENTDOCK_PROJECT` / `AGENTDOCK_RUN`) in the orchestrator's environment to have every worker send OpenTelemetry tagged with its slot and issue. `CS_CLAUDE_BIN` names a different `claude` executable. Profiles are chosen with `CLAUDE_CONFIG_DIR`, which workers inherit.
+
+- **Forwarded, not inherited.** A tmux session gets the tmux server's environment, so `dispatch.sh` passes an allowlist with `-e`: the `OTEL_EXPORTER_OTLP_*`, `OTEL_*_EXPORTER`, `OTEL_*_EXPORT_INTERVAL`, `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS`, `CLAUDE_CODE_ENABLE_TELEMETRY` and `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA` variables that are set, and every `AGENTDOCK_*`. Nothing else is forwarded; the exact list is in the `dispatch.sh` header.
+- **Switch.** With an endpoint set and `CLAUDE_CODE_ENABLE_TELEMETRY` unset, dispatch sets it to `1` and defaults `OTEL_LOGS_EXPORTER` and `OTEL_METRICS_EXPORTER` to `otlp`. Without an endpoint nothing changes.
+- **Tags.** `OTEL_RESOURCE_ATTRIBUTES` keeps any inherited value and appends `agentdock.project` (`AGENTDOCK_PROJECT`, else parsed from `origin`), `agentdock.slot`, `agentdock.issue` (digits of an `i<n>` slot, else the brief's `Issue:` line) and `agentdock.run` (`AGENTDOCK_RUN`, else `<slot>-<YYYYMMDDHHMMSS>`). The keys are a correlation convention any collector may use.
+- **Launcher.** `CS_CLAUDE_BIN` is one executable path or name, used for the pre-flight and the launch. A value with spaces (a shell function such as `claude rc`) is refused; select the profile with `CLAUDE_CONFIG_DIR`.
+- **No secrets on stdout.** The launch line ends `telemetry on → <host:port>` or `telemetry off`; `OTEL_EXPORTER_OTLP_HEADERS` is never printed. `CS_DISPATCH_DRY_RUN=1` prints the tmux command with header values redacted and exits before the worktree exists.
 
 ## The standing obligation — read this before anything else
 
@@ -109,7 +123,8 @@ of the world.**
    prompt on their phone and exactly the pinging this rule exists to end.
 5. **A question for the person never stops the fleet.** Write it once —
    `PushNotification` plus a line in the chat, with your recommendation — label
-   the issue `cs:needs-person`, mark the row `BLOCKED — person` on the board, and
+   the issue `cs:needs-person`, mark the row `BLOCKED — person` on the board,
+   emit `person.needed` and `issue.blocked` (*Events*), and
    go on filling every other slot.
 6. **A dead worker is resumed, not mourned.** A `cs-*` session that vanished
    with its branch unmerged is re-dispatched into the same worktree, with the
@@ -123,7 +138,8 @@ each held row waits on, and **keep the watch armed**.
 ## The one rule this skill exists to enforce
 
 **Nothing here is invented.** The queue is the issues with the ready label; the
-specification is the issue body (and `specDir/<issue>-*.md` if configured); the
+specification is the issue body (and the one `<issue>-*.md` that
+`spec_dir.py --read` finds, if `specDir` is configured); the
 gates are the ones the issue states. If you find yourself proposing work that is
 not an issue, you have stopped orchestrating and started designing the product.
 File it with `/code-sentinel:issue --auto` **without** the ready label and say
@@ -161,6 +177,48 @@ project's `CLAUDE.md` says otherwise.
    denies batched or conditional shell (`gh pr merge` inside an `if`, `for`
    loops over merges) and allows the same commands run plainly. A denial is a
    reason to split the line, not to stop.
+9. **Record that you started** — the last step of Phase 0, after the board and
+   configuration are resolved (see *Events* below):
+
+   ```sh
+   python3 ${CLAUDE_SKILL_DIR}/scripts/emit.py orchestrator.started session=<your ListAgents name> 'config:={"base":"<base>","maxSlots":<n>,"readyLabel":"<label>","specDir":<"<specDir>" or null>,"checks":["<check>"],"mergeMethod":"<method>","autoMerge":true}'
+   ```
+
+### Events
+
+Besides the markdown board, the fleet writes a machine-readable log — `events.jsonl`
+and a derived `state.json` beside the board (contract: `../EVENTS.md`, beside this
+file). **You write it only through `emit.py`**, at the decision points below, each
+as **its own plain `Bash` call** (step 8). A decision is not finished until its
+event is written; the board stays as it is.
+
+```sh
+python3 ${CLAUDE_SKILL_DIR}/scripts/emit.py <type> [key=value …] [key:=<json> …] [--slot <slot>] [--issue <n>]
+```
+
+`key=value` is a string, `key:=<json>` a JSON literal. `emit.py` never fails: a
+bad call prints one `emit:` line and exits 0, so never stop for it — fix the call
+and move on. Every `slot.*` type needs `--slot`.
+
+| When | Type | Arguments |
+|---|---|---|
+| end of Phase 0 (step 9) | `orchestrator.started` | `session=`, `config:={…}` |
+| `stop all`, or the person ends the orchestrator | `orchestrator.stopped` | `reason=` |
+| Phase 5, after the board is written | `round.started` | `round=<HHMM>`, `occupied:=`, `max:=`, `free:=`, `board=<path>` |
+| Phase 5, once every row has its state | `round.decided` | `rows:=[{"issue":<n>,"state":"READY\|IN_FLIGHT\|BLOCKED_WORK\|BLOCKED_PERSON\|NO_SPEC","why":"…"}]` |
+| Phase 2 / 7, a row is `BLOCKED` | `issue.blocked` | `--issue <n>`, `kind=work\|person`, `why=` |
+| standing obligation 5, the question for the person | `person.needed` | `question=`, `recommendation=`, `--issue <n>`, `--slot <slot>` if one holds it |
+| Phase 7c, before `dispatch.sh` resumes a slot | `slot.resumed` | `--slot`, `reason=` |
+| Phase 7, a misclassified slot goes to a stronger model | `slot.redispatched` | `--slot`, `fromModel=`, `toModel=`, `reason=` |
+| Phase 6.5, after the message file is written and the prompt poked | `slot.message_sent` | `--slot`, `text=` (≤ 2 KiB) |
+| a fence is widened | `slot.fence_widened` | `--slot`, `added:=["<glob>"]` |
+| `stop <slot>`, after its cleanup | `slot.stopped` | `--slot`, `by=person\|orchestrator`, `reason=` |
+| Phase 8, right after `gh pr merge` succeeds | `pr.merged` | `--slot`, `--issue <n>`, `pr:=<n>`, `method=<mergeMethod>` |
+
+**Not yours:** `dispatch.sh` writes `slot.dispatched` itself, and `watch.sh` writes
+the heartbeat and every `pr.checks_changed` / `pr.closed`, `session.*`, `pane.*`
+and `commit.trailer_found`. The worker writes its own `slot.checkpoint`. Emitting
+those here would duplicate them.
 
 ## Phase 1 — Read the board, do not interpret it yet
 
@@ -199,7 +257,22 @@ For each ready-labelled issue, assign exactly one state:
 | `READY` | every `Depends on #<m>` in its body is **closed by a merged pull request**, and no gate waits on a person |
 | `BLOCKED — work` | a dependency is open, or an open unmerged pull request touches a file it needs. Name it |
 | `BLOCKED — person` | label `cs:needs-person`, or a `Gate:` line a person clears. Quote it |
-| `NO SPEC` | the body does not say what done looks like (no acceptance criteria, no reproduction for a bug) — not dispatchable. Comment on the issue asking for it, remove the ready label, and say it needs `/code-sentinel:spec` |
+| `NO SPEC` | the body does not say what done looks like (no acceptance criteria, no reproduction for a bug), or `specDir` is set and `spec_dir.py --read` finds no single spec for it (below) — not dispatchable. Comment on the issue asking for it, remove the ready label, and say it needs `/code-sentinel:spec` |
+
+**With `specDir` set**, read the spec for each candidate — its own `Bash` call,
+from the main checkout. It fetches the spec repository first, every time:
+
+```sh
+python3 ${CLAUDE_SKILL_DIR}/scripts/spec_dir.py --read <n>
+```
+
+| Exit | State |
+|---|---|
+| `0` | the spec exists on `origin/<branch>` — keep its `briefLine` for Phase 6 |
+| `2` `no-spec` | `NO SPEC`. The comment quotes `lookedFor` — which file, which directory, which branch of which repository. A spec on an unmerged docs branch, or only in someone's working tree, is not a spec yet |
+| `3` `ambiguous` | `NO SPEC`, and the comment names every file in `files` — one issue, one spec |
+| `4` `unreachable` | `BLOCKED — person`: the repository could not be cloned or fetched. The reason is the `gh auth …` command in `message` — a credential is the person's |
+| `1` `config` | `specDir` itself is wrong — say so once, with `message`; every row falls back to `NO SPEC` until it is fixed |
 
 **An issue may carry a `## Parallel plan`** (written by `/code-sentinel:spec`) —
 a table of slots, what each owns (`Touches` → the slot's `owns:` fence), its
@@ -214,6 +287,10 @@ comment that it needs splitting (`/code-sentinel:spec`), and move on. A
 
 **A green test suite does not clear a gate.** If you find yourself reasoning that
 a gate is "probably fine", that is the gate working.
+
+**Emit `issue.blocked`** for every `BLOCKED — work` and `BLOCKED — person` row,
+one `Bash` call each (*Events*): `kind=work` or `kind=person`, `why=` the line
+the board will carry.
 
 ## Phase 3 — Decide. There is no interview.
 
@@ -280,6 +357,9 @@ destroys the only record of what the fleet was doing an hour ago.
 | Slot / PR | Issue | Where it got to |
 ```
 
+Then emit `round.started` and `round.decided` (*Events*) — the same numbers and
+the same states as the board, each as its own `Bash` call.
+
 ### The board is a record, not a request
 
 Nobody approves it. A slot is dispatched the moment **all** of these are true,
@@ -312,6 +392,7 @@ For each slot, in order:
 Orchestrator: <your exact ListAgents session name>
 Repository: <owner/repo>
 Issue: #<n> — <url>
+Spec: <GitHub URL> (local read-only copy: <path>)   ← only with specDir: the `briefLine` from Phase 2's --read, verbatim
 Kind: feature | bug
 Branch: <branch>
 Base: <base>
@@ -368,7 +449,8 @@ and reports the path; landing it is yours.
 
 `fence.py` re-reads `.orchestrator-brief.md` from the worktree on **every**
 call, so a fence widens live: edit the copy inside the worktree and the next
-tool call sees it. No kill, no lost context.
+tool call sees it. No kill, no lost context. Emit `slot.fence_widened` with the
+globs you added (*Events*).
 
 ### Cut the fence from live contention, never from the files you can name
 
@@ -450,7 +532,8 @@ tmux send-keys -t cs-<slot> -l "Read ./.orchestrator-msg.md and reply into ./.or
 tmux send-keys -t cs-<slot> Enter
 ```
 
-3. Read `<worktree>/.orchestrator-reply.md` when the watch says it changed.
+3. Emit `slot.message_sent` with the text you sent (*Events*).
+4. Read `<worktree>/.orchestrator-reply.md` when the watch says it changed.
 
 An `IDLE` with no reply behind it is a worker that stopped without saying why:
 read its pane, then poke it. **Never treat silence as progress.**
@@ -490,7 +573,8 @@ the others.
   reports `misclassified`, or twice returns a plan that contradicts its issue,
   was given the wrong model. Kill the session, keep the worktree and branch,
   dispatch the same slot on `opus` with the same brief; `dispatch.sh` reuses
-  the worktree. Note on the board what the classification missed.
+  the worktree. Note on the board what the classification missed, and emit
+  `slot.redispatched` (*Events*) before the dispatch.
 - **Do not re-brief a finished worker** for a new issue. A new issue gets a new
   session in a clean worktree.
 - **Never do a worker's work.** Editing its worktree from here is two writers on
@@ -534,7 +618,7 @@ On `SESSIONS-CHANGED`, for every slot that left the session list:
 | unmerged, commits or uncommitted changes | **resume now** |
 | quota banner was on its pane | resume when the allowance returns; the board says so |
 
-**Resuming** is `dispatch.sh` into the **same slot and worktree**, **same
+Emit `slot.resumed` first (*Events*), then dispatch. **Resuming** is `dispatch.sh` into the **same slot and worktree**, **same
 model**, with the original brief plus a `## Resumed <HHMM>` section at the top:
 the previous session died and when; the worktree is exactly as left; its earlier
 reports are in `.orchestrator-reply.md` — read them first, append under new
@@ -570,8 +654,9 @@ what "arrange to be woken" means.
 
 A pull request that is green, `MERGEABLE`, `CLEAN` and carries no open question
 from its worker is merged **by you, in the wake it went green**:
-`gh pr merge <n> --<mergeMethod>`. The review is the worker's merge summary;
-read it. Do **not** merge:
+`gh pr merge <n> --<mergeMethod>`. When it succeeds, emit `pr.merged`
+(*Events*) before anything else — its own `Bash` call. The review is the
+worker's merge summary; read it. Do **not** merge:
 
 - an issue whose gate a person clears;
 - one whose worker reported a specification defect it built around without an

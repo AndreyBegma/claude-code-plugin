@@ -118,9 +118,12 @@ ${CLAUDE_SKILL_DIR}/scaffold.sh <path> <name> "<Title>" <api-port> <web-port> <d
 ```
 
 It copies the template, substitutes every placeholder, renames the dotfiles,
-creates `apps/api/.env` and `apps/web/.env.local` from the examples (with a
-random local database password), and fails if any placeholder remains. Show its
-output.
+creates `docker/.env`, `apps/api/.env` and `apps/web/.env.local` from the
+examples, and fails if any placeholder remains. The random local database
+password is written only to `docker/.env` and `apps/api/.env` (both git-ignored);
+the committed `docker/.env.example` and `apps/api/.env.example` keep
+`change-me`, and `docker-compose.yml` reads `POSTGRES_PASSWORD` from
+`docker/.env`. Show its output.
 
 If the person chose to remove the example: delete the `User` model from
 `apps/api/prisma/schema.prisma` and replace the body of `main()` in
@@ -154,7 +157,7 @@ say what was done and what was not.
    ```
 4. **Git** — `git init -b main`, `git add -A`, `git commit -m "chore: initial
    project setup"`. Before committing, confirm `.env` files are ignored
-   (`git check-ignore apps/api/.env`). Respect the person's commit rules — no
+   (`git check-ignore docker/.env apps/api/.env` lists both). Respect the person's commit rules — no
    attribution trailer if their instructions forbid it.
 5. **GitHub** — only if chosen, and only after the commit:
    `gh repo create <name> --private --source . --push`. This publishes code; it
@@ -184,6 +187,8 @@ Never report a step as done that was not run.
 
 - Write into a directory that is not empty, or overwrite an existing project.
 - Pick a port that is in use, or the same port for two roles.
+- Commit a generated secret: the password never goes into a committed file
+  (`docker-compose.yml`, `.env.example`, README) — only into git-ignored `.env`.
 - Commit `.env` files or print the database password into chat beyond the
   location it was written to.
 - Create a GitHub repository or push without the person choosing it.

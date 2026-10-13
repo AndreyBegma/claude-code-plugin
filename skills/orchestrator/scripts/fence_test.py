@@ -256,6 +256,34 @@ SIGNAL_CASES = [
 ]
 
 
+# #5 — the worker reports each checkpoint through `emit.py`, which appends to
+# `<git-common-dir>/cs-orchestrator/` — outside the worktree, on purpose. No
+# fence exception allows it: `python3 <file> args…` names no write target the
+# fence can see, and `emit.py` fixes its own target and takes no path. These
+# cases lock that in, so a later fence change cannot silently cut the channel,
+# and so the redirect and inline-code rules still hold around it.
+EMIT_CASES = [
+    ("emit through $CS_EMIT is allowed",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=plan_ready summary=x'),
+     "allow", ""),
+    ("emit through an absolute path is allowed",
+     *bash("python3 /opt/code-sentinel/skills/orchestrator/scripts/emit.py "
+           "slot.checkpoint checkpoint=plan_ready summary=x"), "allow", ""),
+    ("emit with a quoted summary and a JSON value is allowed",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=pr_open '
+           '"summary=opened, checks green" pr:=51'), "allow", ""),
+    ("emit with stderr dropped is allowed",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=blocked summary=x 2>/dev/null'),
+     "allow", ""),
+    ("emit redirected into a file outside the fence is still denied",
+     *bash('python3 "$CS_EMIT" slot.checkpoint checkpoint=plan_ready summary=x '
+           '> owned-elsewhere.txt'), "deny", "ownership fence"),
+    ("python3 -c is still denied beside emit",
+     *bash("python3 -c 'import emit; emit.emit(\"pane.idle\", {})'"),
+     "deny", "cannot tell what"),
+]
+
+
 # BUG-20260829-003 — `Bash` persists a `cd` for the rest of the session, and
 # the harness hands the hook that moved `cwd` on every later tool call, not
 # only `Bash`'s own. A hook that looked for the brief only at `cwd` stopped
@@ -475,6 +503,60 @@ DOUBLESTAR_MIDDLE_CASES = [
 ]
 
 
+# #7 (D6) — a spec in a sibling documentation repository is read-only to a
+# worker, and that needs no fence change: the path `spec_dir.py` resolves is
+# outside the worktree. The worker here owns `**`, so the worktree boundary is
+# the only thing that can refuse it.
+SPEC_DIR_BRIEF = """\
+# Brief — i1
+
+owns:
+  - **
+  - .orchestrator-reply.md
+"""
+
+
+def build_spec_dir_tree(parent):
+    """`app` (main checkout), `.wt-app-i1` (its worktree) and a sibling `docs-repo`."""
+    app = os.path.join(parent, "app")
+    docs = os.path.join(parent, "docs-repo")
+    worktree = os.path.join(parent, ".wt-app-i1")
+    os.makedirs(os.path.join(docs, "prs"))
+    with open(os.path.join(docs, "prs", "1-x.md"), "w") as handle:
+        handle.write("spec for #1\n")
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@t.invalid"]
+    for argv in (
+        git + ["init", "-q", "-b", "main", app],
+        git + ["-C", app, "commit", "-q", "--allow-empty", "-m", "init"],
+        git + ["-C", app, "worktree", "add", "-q", "-b", "feat/1-x", worktree],
+        git + ["init", "-q", "-b", "main", docs],
+        git + ["-C", docs, "remote", "add", "origin", "https://github.com/acme/docs-repo.git"],
+        # No network: name the default branch the way a clone records it.
+        git + ["-C", docs, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"],
+    ):
+        subprocess.run(argv, check=True, capture_output=True)
+    with open(os.path.join(worktree, ".orchestrator-brief.md"), "w") as handle:
+        handle.write(SPEC_DIR_BRIEF)
+    sys.path.insert(0, HERE)
+    import spec_dir
+    where = spec_dir.resolve(worktree, "../docs-repo/prs")
+    return worktree, os.path.join(where["local"], "1-x.md")
+
+
+def spec_dir_cases(spec_path):
+    return [
+        ("a Write to the resolved spec path is refused from the worktree",
+         "Write", {"file_path": spec_path, "content": "x"}, "deny", "outside this worktree"),
+        ("an Edit of the resolved spec path is refused from the worktree",
+         "Edit", {"file_path": spec_path, "old_string": "spec", "new_string": "x"},
+         "deny", "outside this worktree"),
+        ("a shell redirect into the resolved spec path is refused",
+         *bash("echo x > %s" % spec_path), "deny", "outside this worktree"),
+        ("reading the resolved spec path is not touched",
+         *bash("cat %s" % spec_path), "allow", ""),
+    ]
+
+
 # U0 (`E-92`) — `glass-ui` is the first worktree the fence protects that is not
 # shaped like `denitsa-app` at all: no `apps/`, no `packages/`, and a git
 # toplevel that is not named `denitsa-app`. `fence.py` was already claimed to
@@ -672,6 +754,9 @@ def main():
         # BUG-20260902-001 — process signals are a shape the fence knows now.
         run_cases(root, SIGNAL_CASES, failures)
 
+        # #5 — the worker's `emit.py` checkpoint call passes the fence.
+        run_cases(root, EMIT_CASES, failures)
+
         # BUG-20260829-003 — `cwd` moved by a `cd` no longer loses the brief.
         run_cases(root, CWD_CASES, failures, cwd=os.path.join(root, "apps", "atlas"))
 
@@ -744,15 +829,25 @@ def main():
     finally:
         shutil.rmtree(doublestar_root, ignore_errors=True)
 
+    # #7 — the spec in a sibling docs repository, as `spec_dir.py` resolves it.
+    spec_parent = tempfile.mkdtemp(prefix="fence-test-spec-dir-", dir=scratch_parent())
+    try:
+        spec_worktree, spec_path = build_spec_dir_tree(spec_parent)
+        spec_cases = spec_dir_cases(spec_path)
+        run_cases(spec_worktree, spec_cases, failures)
+    finally:
+        shutil.rmtree(spec_parent, ignore_errors=True)
+
     print()
     if failures:
         print(f"{len(failures)} failed:")
         for line in failures:
             print(f"  - {line}")
         return 1
-    total = (len(CASES) + len(SIGNAL_CASES) + len(CWD_CASES) + len(ANNOTATED_CASES)
+    total = (len(CASES) + len(SIGNAL_CASES) + len(EMIT_CASES) + len(CWD_CASES)
+             + len(ANNOTATED_CASES)
              + len(CONTRADICTION_CASES) + len(CHECK_CASES) + len(SECOND_REPO_CASES)
-             + len(ISSUE_CASES) + len(DOUBLESTAR_MIDDLE_CASES) + 2)
+             + len(ISSUE_CASES) + len(DOUBLESTAR_MIDDLE_CASES) + len(spec_cases) + 2)
     print(f"{total} passed")
     return 0
 
