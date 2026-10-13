@@ -246,3 +246,7 @@ skills/orchestrator/   SKILL.md, EVENTS.md, and scripts/ (dispatch.sh, watch.sh,
 ```
 
 Contributor conventions are in [CLAUDE.md](CLAUDE.md). Version history is in [RELEASE.md](RELEASE.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
