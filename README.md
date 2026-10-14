@@ -22,7 +22,7 @@ drives.
 The repository is a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`). In Claude Code:
 
 ```text
-/plugin marketplace add AndreyBegma/claude-code-plugin
+/plugin marketplace add AndreyBegma/code-sentinel-skills
 /plugin install code-sentinel@code-sentinel
 ```
 
