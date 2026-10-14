@@ -2,6 +2,8 @@
 
 **A Claude Code plugin that reviews your code, files the issues, and runs a fleet of agents that turns those issues into merged pull requests.**
 
+[![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/mkQARkBs4C)
+
 Code Sentinel adds 25 `/cs-*` skills to [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Some are
 analysis skills: security, dead code, performance, architecture drift, UX and SEO. Others work with GitHub: they
 review pull requests and post the comments, extract team rules from review threads into `CLAUDE.md`, and resolve
