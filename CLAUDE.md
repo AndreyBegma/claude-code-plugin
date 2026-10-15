@@ -39,6 +39,7 @@ skills/
   feature/SKILL.md                      — /cs-feature
   worker/SKILL.md                       — /cs-worker
   orchestrator/SKILL.md                 — /cs-orchestrator
+  clean/SKILL.md                        — /cs-clean
   orchestrator/EVENTS.md                — events.jsonl / state.json contract and event catalogue
   orchestrator/scripts/                 — dispatch.sh, watch.sh, fence.py, fence_test.py, emit.py, emit_test.py, dispatch_test.py, wiring_test.sh, spec_dir.py (specDir resolver, shared with cs-spec), spec_dir_test.py, launch pre-flight helpers
 ```
@@ -61,6 +62,7 @@ skills/
 | `/cs-feature <#issue\|desc> [--auto] [--worker]` | Feature or bug fix from request to PR — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR              |
 | `/cs-orchestrator [start\|status\|next\|stop]`   | Autonomous fleet — parallel worker sessions in git worktrees for `cs:ready` issues, auto-merge green PRs, refill slots        |
 | `/cs-worker <brief>`                             | Worker session launched by `/cs-orchestrator` — one issue, one worktree, ownership fence, never merges                        |
+| `/cs-clean [--dry-run] [--auto] [--local] [--abandoned]` | Post-merge cleanup — deletes remote/local branches and clean worktrees of merged PRs, closes issues they resolved but GitHub left open; confirmed unless `--auto` |
 | `/cs-perf [path\|category]`                     | Performance analyzer — N+1 queries, re-renders, memory leaks, bundle size                                                     |
 | `/cs-ux-review [url\|focus]`                    | UX analysis — friction points, redesign proposals with before/after mockups                                                   |
 | `/cs-seo <path> [--fix\|--url\|--compare]`      | SEO analysis from GSC exports — quick wins, problems, meta tag fixes                                                          |
@@ -102,9 +104,10 @@ Skills auto-detect missing MCPs and offer to install via `AskUserQuestion`. If s
 - Each skill runs **one sequential analysis** (single-agent, not parallel) — except `cs-orchestrator`, which dispatches parallel worker sessions by design
 - Init skill (`cs-init`) creates a **new** project only — refuses non-empty directories; template changes must be verified by generating a throwaway project (install, check, test, build, db:setup)
 - Estimate skill (`cs-estimate`) asks first who executes the work (orchestrator / team / compare); never starts the orchestrator itself — it offers to queue (`cs:ready`) and names the command. Read-only except `--post` (issue comment with a `<!-- cs-estimate -->` marker + `size:` label, confirmed unless `--auto`)
+- Cleanup skill (`cs-clean`) only deletes branches/worktrees and closes issues backed by a merged pull request or an ancestry check — never unmerged work, never protected branches; confirmed unless `--auto`
 - Spec skill (`cs-spec`) writes documents only (issue body, optional spec file / decision record via a docs PR) — never product code, never dispatches; asks before publishing
 - Feature skill (`cs-feature`) modifies source code — only after an approved plan (or a posted plan under `--auto`), always on a feature branch, never merges
-- Orchestrator (`cs-orchestrator`) never writes product code; it creates worktrees/branches, labels issues, and merges green PRs (unless `orchestrator.autoMerge` is `false`). Workers (`cs-worker`) are fenced by `orchestrator/scripts/fence.py` and never merge
+- Orchestrator (`cs-orchestrator`) never writes product code; it creates worktrees/branches, labels issues, and merges green PRs (unless `orchestrator.autoMerge` is `false`). After each merge it deletes the branch (remote and local) and closes the resolved issue itself — `Closes #n` does nothing when the base is not the default branch. Workers (`cs-worker`) are fenced by `orchestrator/scripts/fence.py` and never merge
 - Skill-bundled scripts are referenced as `${CLAUDE_SKILL_DIR}/scripts/...`; run `python3 skills/orchestrator/scripts/fence_test.py` after changing `fence.py`, and `bash skills/orchestrator/scripts/wiring_test.sh` after changing the `emit` calls in `watch.sh` / `dispatch.sh`, and `python3 skills/orchestrator/scripts/dispatch_test.py` after changing the worker environment or launcher in `dispatch.sh`, and `python3 skills/orchestrator/scripts/spec_dir_test.py` after changing `spec_dir.py` (the `specDir` grammar is implemented there only — cs-spec calls it as `${CLAUDE_SKILL_DIR}/../orchestrator/scripts/spec_dir.py`)
 - Prioritizes HIGH/CRITICAL findings; lower-severity issues included where appropriate
 - Respects `$ARGUMENTS` to analyze specific directories

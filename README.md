@@ -86,6 +86,7 @@ Requirements:
 | `/cs-feature <#issue\|desc> [--auto]` | From request to pull request: study, plan, approval (or `--auto`), issue, branch, implementation, checks, PR |
 | `/cs-orchestrator [start\|status\|next\|stop]` | Unattended fleet: parallel worker sessions in git worktrees for ready issues, merges green PRs, refills slots |
 | `/cs-worker <brief>` | What a dispatched session runs: one issue, one worktree, an ownership fence; stops before merge |
+| `/cs-clean [--dry-run] [--auto]` | Post-merge cleanup: delete branches and worktrees of merged pull requests, close the issues they resolved but GitHub left open |
 | `/cs-init [name] [dir]` | Scaffold a fullstack monorepo (Bun + Turborepo, NestJS + Prisma + PostgreSQL, Next.js + Tailwind, Biome), verified end to end |
 
 ## Usage
@@ -126,6 +127,10 @@ Requirements:
 /cs-orchestrator start
 /cs-orchestrator status
 /cs-orchestrator stop i57
+
+# Clean up after merges
+/cs-clean --dry-run
+/cs-clean
 
 # New project
 /cs-init acme ~/dev/acme

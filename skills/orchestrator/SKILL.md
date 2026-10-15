@@ -214,6 +214,7 @@ and move on. Every `slot.*` type needs `--slot`.
 | a fence is widened | `slot.fence_widened` | `--slot`, `added:=["<glob>"]` |
 | `stop <slot>`, after its cleanup | `slot.stopped` | `--slot`, `by=person\|orchestrator`, `reason=` |
 | Phase 8, right after `gh pr merge` succeeds | `pr.merged` | `--slot`, `--issue <n>`, `pr:=<n>`, `method=<mergeMethod>` |
+| Phase 8 / Phase 1, after *Cleaning up a merge* | `pr.cleaned` | `--slot`, `--issue <n>`, `pr:=<n>`, `branch=<branch>`, `remoteDeleted:=true\|false`, `localDeleted:=true\|false`, `issuesClosed:=[<n>,…]` |
 
 **Not yours:** `dispatch.sh` writes `slot.dispatched` itself, and `watch.sh` writes
 the heartbeat and every `pr.checks_changed` / `pr.closed`, `session.*`, `pane.*`
@@ -239,7 +240,7 @@ classify — none of these is a question for anyone:
 
 | Worktree | Session | Verdict |
 |---|---|---|
-| branch merged into `origin/<base>` | any | **free** — kill the session if one lingers, `git worktree remove` |
+| branch merged into `origin/<base>` | any | **free** — kill the session if one lingers, `git worktree remove`, then *Cleaning up a merge* (Phase 8) for its branch and issue — a merge from an earlier run may have left both behind |
 | unmerged, commits or uncommitted changes | live | occupied |
 | unmerged, commits or uncommitted changes | **none** | a **dead slot** — resume it (Phase 7c) this round, before anything new |
 | unmerged, clean at its base, no reply file | none | an aborted dispatch — resume from its brief; with no brief on the board, remove the worktree and treat the issue as ready |
@@ -634,8 +635,8 @@ On **every** wake — whatever woke you, including the person typing — run
 
 1. **Merge** every pull request that is green, `MERGEABLE`, `CLEAN` and carries
    no unanswered question from its worker (see *Merging*). Then kill its
-   session, remove its worktree, remove `cs:in-flight` (the `Closes #n` closes
-   the issue).
+   session, remove its worktree, and run *Cleaning up a merge*: delete the
+   branch on `origin` and locally, close the issue, remove `cs:in-flight`.
 2. **Unblock** every idle slot: widen a fence, answer from the issue, send a
    red check back to be reproduced locally.
 3. **Fill** every free slot, now. If nothing is dispatchable, write down which
@@ -654,7 +655,7 @@ what "arrange to be woken" means.
 
 A pull request that is green, `MERGEABLE`, `CLEAN` and carries no open question
 from its worker is merged **by you, in the wake it went green**:
-`gh pr merge <n> --<mergeMethod>`. When it succeeds, emit `pr.merged`
+`gh pr merge <n> --<mergeMethod> --delete-branch`. When it succeeds, emit `pr.merged`
 (*Events*) before anything else — its own `Bash` call. The review is the
 worker's merge summary; read it. Do **not** merge:
 
@@ -672,9 +673,43 @@ worker's merge summary; read it. Do **not** merge:
 **Space merges a minute or two apart** where CI cancels a running base pipeline
 on the next push — three merges in four minutes can be one deploy.
 
-After the merge, in the same wake: kill the session, remove the worktree, tell
-every slot whose never-list named that slot's files that they are free, and
-dispatch whatever the merge unblocked.
+After the merge, in the same wake: kill the session, remove the worktree, run
+*Cleaning up a merge*, tell every slot whose never-list named that slot's files
+that they are free, and dispatch whatever the merge unblocked.
+
+### Cleaning up a merge
+
+A merged pull request leaves three things behind unless you remove them: the
+branch on `origin`, the local branch the worktree was cut on, and the issue.
+`Closes #<n>` closes an issue **only when the pull request merges into the
+default branch**; with `base` set to anything else (`develop`) the issue stays
+open after the merge, and an open issue whose `Depends on` lines name it never
+becomes `READY`. So close it yourself. Each step is its own plain `Bash` call,
+in this order, after the worktree is removed (git refuses to delete a branch a
+worktree still has checked out):
+
+1. **Remote branch.** `gh pr merge --delete-branch` normally deletes it. Check
+   with `git ls-remote --exit-code --heads origin <branch>`; if it is still there,
+   `git push origin --delete <branch>`. Never delete `<base>`, the default
+   branch, or a branch another open pull request uses as its head or base.
+2. **Local branch.** `git branch -D <branch>` if `git branch --list <branch>`
+   prints it. `-D` because a squash or rebase merge leaves the local commits
+   unreachable from `<base>`; the pull request's merged state is the proof.
+   Then `git fetch --prune origin`.
+3. **Issues.** For every issue the pull request closes — `gh pr view <pr> --json
+   closingIssuesReferences -q '.closingIssuesReferences[].number'`, plus the
+   slot's own issue — read `gh issue view <n> --json state -q .state`; if it is
+   `OPEN`, `gh issue close <n> --reason completed --comment "Merged in #<pr>
+   into <base>."`. Never close an issue the pull request does not claim.
+4. **Labels.** `gh issue edit <n> --remove-label cs:in-flight` (and the ready
+   label, if it is still on).
+5. **Emit** `pr.cleaned` (*Events*) with what each step actually did.
+
+A failed step is reported in the wake's summary line and does not stop the
+others or the wake. In Phase 1, skip a pull request that already has a
+`pr.cleaned` event in `events.jsonl`: an issue reopened since then was reopened
+by a person, and is theirs. Leftovers from before this step existed, or outside
+the fleet, are `/cs-clean`'s job, not a wake's.
 
 ### What to say, and when
 
@@ -698,3 +733,5 @@ or the queue running dry.
 - Launch two sessions on one slot, or two slots on one worktree.
 - Report a dispatch you have not seen in `ListAgents`.
 - Let a worker merge.
+- Leave a merged pull request's branch, local branch or issue behind across a
+  wake.

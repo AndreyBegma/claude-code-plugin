@@ -429,6 +429,21 @@ def test_reducer_retention_and_blocking(_repo):
     assert "b" in state["slots"], "a running slot is never pruned"
 
 
+def test_pr_cleaned_is_logged_only(_repo):
+    dispatch = {"branch": "feat/7-x", "worktree": "w", "model": "sonnet", "base": "d",
+                "brief": "f"}
+    state = emit.fold(emit.empty_state(), {"v": 1, "type": "slot.dispatched", "ts": ts(0),
+                                           "slot": "a", "issue": 7, "data": dispatch})
+    state = emit.fold(state, {"v": 1, "type": "pr.merged", "ts": ts(1), "slot": "a",
+                              "data": {"pr": 9, "method": "merge"}})
+    before = json.loads(json.dumps(state))
+    state = emit.fold(state, {"v": 1, "type": "pr.cleaned", "ts": ts(1), "slot": "a",
+                              "data": {"pr": 9, "branch": "feat/7-x",
+                                       "remoteDeleted": True, "localDeleted": True,
+                                       "issuesClosed": [7]}})
+    assert state == before, "pr.cleaned is logged only; the merge already ended the slot"
+
+
 def test_lock_timeout(repo):
     os.makedirs(repo.dir)
     fd = os.open(os.path.join(repo.dir, ".events.lock"), os.O_RDWR | os.O_CREAT)
@@ -488,6 +503,7 @@ CASES = [
     test_rebuild_spans_rotated_logs,
     test_reducer_person_needed_rules,
     test_reducer_retention_and_blocking,
+    test_pr_cleaned_is_logged_only,
     test_lock_timeout,
     test_outside_a_repository,
     test_repo_slug,
