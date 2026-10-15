@@ -2,7 +2,7 @@
 #
 # The orchestrator's alarm clock. Run it under the `Monitor` tool, persistent.
 #
-#   scripts/orchestrator/watch.sh [poll-seconds] [heartbeat-seconds]
+#   skills/orchestrator/scripts/watch.sh [poll-seconds] [heartbeat-seconds]
 #
 # Every stdout line is an event that wakes the orchestrator. It emits on exactly
 # the things Phase 8 acts on, and nothing else:
