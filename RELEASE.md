@@ -1,5 +1,34 @@
 # Release Notes
 
+## v1.25.0 (2026-10-15)
+
+### New Skills
+
+- **`/cs-clean`** — post-merge cleanup for any GitHub repository
+  - Deletes remote branches of merged pull requests (tip must match the merged head, or be contained in the base), merged local branches (including `[gone]` upstreams after squash merges) and clean worktrees that still hold them
+  - Closes issues a merged pull request resolved but GitHub left open — `Closes #n` into a non-default base (`develop`) closes nothing; reads `closingIssuesReferences` plus the PR body, skips issues reopened after the merge or still claimed by an open PR; removes stale `cs:in-flight` labels
+  - Never touches protected / default / orchestrator-base branches, open-PR heads, live orchestrator slots, dirty worktrees or unmerged commits; `--dry-run`, `--auto`, `--local`, opt-in `--abandoned` for branches of PRs closed without merge
+  - Configuration: `.code-analyzer-config.json` → `clean` (`protectedBranches`, `prLimit`, `closeIssues`)
+
+### Improvements
+
+- **`/cs-orchestrator`** — cleans up after every merge
+  - `gh pr merge --delete-branch`; new *Cleaning up a merge* step: verify the remote branch is gone, delete the local branch, close the slot's issue(s) with a comment, remove `cs:in-flight`
+  - Phase 1 applies the same cleanup to merged worktrees found on start, so leftovers from a previous run are picked up
+  - Fixes issues staying open forever (and their `Depends on` dependents never becoming `READY`) when `base` is not the default branch
+  - New event `pr.cleaned` (logged only) in `emit.py` / `EVENTS.md`, with a test
+- **`/cs-feature`** — when the person asks it to merge: `--delete-branch`, local branch deleted, issue closed if the base is not the default branch
+
+### Files Changed
+
+- `skills/clean/SKILL.md` — new
+- `skills/orchestrator/SKILL.md`, `skills/orchestrator/EVENTS.md`, `skills/orchestrator/scripts/emit.py`, `skills/orchestrator/scripts/emit_test.py` — post-merge cleanup, `pr.cleaned`
+- `skills/feature/SKILL.md` — merge cleanup on request
+- `CLAUDE.md`, `README.md` — docs
+- `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` — version bump to 1.25.0
+
+---
+
 ## v1.24.0 (2026-10-06)
 
 ### New Skills

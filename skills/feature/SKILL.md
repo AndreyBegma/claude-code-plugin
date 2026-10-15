@@ -216,7 +216,7 @@ request per repository; unrelated changes never share one.
 
 | Mode | After the PR |
 |---|---|
-| interactive | give the URL and a short summary. Do not merge unless the person asks |
+| interactive | give the URL and a short summary. Do not merge unless the person asks. When they do: `gh pr merge <n> --<method> --delete-branch`, then `git branch -D <branch>` locally, then close the issue with `gh issue close <n> --reason completed --comment "Merged in #<pr>."` if it is still open — `Closes #<n>` closes it only when the base is the default branch |
 | `--auto` | give the URL; **do not merge** — merging belongs to the person or to `cs-orchestrator` |
 | `--worker` | hand back to `cs-worker` Step 5 (merge summary, stop) |
 
