@@ -3,14 +3,13 @@
 
 Run it directly:
 
-    python3 scripts/orchestrator/fence_test.py
+    python3 skills/orchestrator/scripts/fence_test.py
 
 It builds a throwaway worktree with a synthetic brief, drives `fence.py` over
 stdin the way the `PreToolUse` hook does, and asserts on the decision. Nothing
 here touches the repository it lives in.
 
-It is not wired into `bun run test`: `package.json` belongs to another slot in
-this wave. That is the one follow-up this fix leaves behind.
+It needs only Python 3 and git — no API key, no Claude Code session.
 """
 import json
 import os
