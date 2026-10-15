@@ -94,6 +94,7 @@ requires `slot` in the envelope.
 | `pr.merged` | orchestrator SKILL (Phase 8, after `gh pr merge` succeeds) | **pr**, **method** |
 | `pr.checks_changed` | watch.sh on `PR-CHANGED` | **pr**, **branch**, **rollup** (`pending` \| `green` \| `red`), raw |
 | `pr.closed` | watch.sh on `PR-GONE` | **pr**, **branch** |
+| `pr.cleaned` | orchestrator SKILL (Phase 8 after the merge, or Phase 1 for a merged branch left behind) | **pr**, **branch**, remoteDeleted, localDeleted, issuesClosed (issue numbers) |
 | `issue.blocked` | orchestrator SKILL (Phase 2 / 7) | **kind** (`work` \| `person`), **why** |
 | `person.needed` | orchestrator SKILL (standing obligation 5) | **question**, **recommendation** |
 | `session.appeared` / `session.vanished` | watch.sh on `SESSIONS-CHANGED` (one event per session in the diff) | **name**, via |
@@ -210,8 +211,8 @@ than the 7-day window the snapshot shows.
 - **Finding the slot for a `pr.*` event.** The envelope's slot if it is known;
   otherwise the slot whose `pr.number` matches `data.pr`; otherwise the slot
   whose `branch` matches `data.branch`.
-- `slot.message_sent`, `slot.fence_widened`, and the session, pane and commit
-  events are logged only. They do not change the snapshot.
+- `slot.message_sent`, `slot.fence_widened`, `pr.cleaned`, and the session,
+  pane and commit events are logged only. They do not change the snapshot.
 - **`personNeeded`.** `person.needed` appends
   `{ issue, slot, question, recommendation, ts }`. An entry stays visible while
   the worker does other work: neither a checkpoint nor anything else from the

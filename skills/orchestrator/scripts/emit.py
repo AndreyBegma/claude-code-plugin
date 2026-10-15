@@ -102,6 +102,7 @@ TYPES = {
     "pr.merged": ("pr", "method"),
     "pr.checks_changed": ("pr", "branch", "rollup"),
     "pr.closed": ("pr", "branch"),
+    "pr.cleaned": ("pr", "branch"),
     "issue.blocked": ("kind", "why"),
     "person.needed": ("question", "recommendation"),
     "session.appeared": ("name",),
