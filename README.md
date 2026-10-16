@@ -175,7 +175,7 @@ State lives in `${XDG_STATE_HOME:-~/.local/state}/cs-eco/` and the machine defau
 3. **Fence** — each brief carries `owns:` / `never:` globs; `fence.py` runs as a `PreToolUse` hook (passed with `--settings`, nothing committed) and refuses writes outside them, including shell writes it can parse.
 4. **Channel** — workers report through `.orchestrator-reply.md`; `watch.sh` under `Monitor` wakes the orchestrator on PR, reply, idle, dead-session and quota events.
 5. **Merge & refill** — green, mergeable PRs are merged by the orchestrator, worktrees removed, and the next ready issue dispatched in the same pass. Dead workers are resumed in their worktree.
-6. **Token saver** — every worker starts with `/cs-eco` on (`CS_ECO=on`) and compacts at 70 % of the context window. Set `orchestrator.eco: false` to turn this off.
+6. **Token saver** — every worker starts with `/cs-eco` on (`CS_ECO=on`) and compacts at 70 % of the context window; the orchestrator turns eco on for its own session in Phase 0 (no early compaction there). Set `orchestrator.eco: false` to turn this off.
 
 Requirements: `git` ≥ 2.31, `gh` (authenticated), `tmux` ≥ 3.2, `python3`, `claude` on `PATH`.
 
@@ -227,7 +227,7 @@ Create `.code-analyzer-config.json` in the project root to customize analysis:
 }
 ```
 
-Every `orchestrator` key is optional — base defaults to origin's default branch, install and checks are detected from the project. `eco: false` launches workers without the token saver and early compaction.
+Every `orchestrator` key is optional — base defaults to origin's default branch, install and checks are detected from the project. `eco: false` launches workers without the token saver and early compaction, and leaves the orchestrator's own session alone.
 
 ## How it works
 
