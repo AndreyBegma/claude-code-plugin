@@ -96,7 +96,7 @@ Export `OTEL_EXPORTER_OTLP_ENDPOINT` (and optional `AGENTDOCK_PROJECT` / `AGENTD
 - **Switch.** With an endpoint set and `CLAUDE_CODE_ENABLE_TELEMETRY` unset, dispatch sets it to `1` and defaults `OTEL_LOGS_EXPORTER` and `OTEL_METRICS_EXPORTER` to `otlp`. Without an endpoint nothing changes.
 - **Tags.** `OTEL_RESOURCE_ATTRIBUTES` keeps any inherited value and appends `agentdock.project` (`AGENTDOCK_PROJECT`, else parsed from `origin`), `agentdock.slot`, `agentdock.issue` (digits of an `i<n>` slot, else the brief's `Issue:` line) and `agentdock.run` (`AGENTDOCK_RUN`, else `<slot>-<YYYYMMDDHHMMSS>`). The keys are a correlation convention any collector may use.
 - **Launcher.** `CS_CLAUDE_BIN` is one executable path or name, used for the pre-flight and the launch. A value with spaces (a shell function such as `claude rc`) is refused; select the profile with `CLAUDE_CONFIG_DIR`.
-- **Token saver.** Unless `orchestrator.eco` is `false`, dispatch adds `-e CS_ECO=on -e CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=<n>` and the launch line ends `· eco on`. The worker's Bash output is filtered through `agentdock-runner` when it is installed (workers run in `bypassPermissions`), and its reads are soft-guarded. A worker can still run `/cs-eco off` for its own session. Your own session is not changed: run `/cs-eco` there if you want it.
+- **Token saver.** Unless `orchestrator.eco` is `false`, dispatch adds `-e CS_ECO=on -e CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=<n>` and the launch line ends `· eco on`. The worker's Bash output is filtered through `agentdock-runner` when it is installed (workers run in `bypassPermissions`), and its reads are soft-guarded. A worker can still run `/cs-eco off` for its own session. Your own session gets eco in Phase 0 step 8a (same switch); early compaction does not apply to it.
 - **No secrets on stdout.** The launch line ends `telemetry on → <host:port>` or `telemetry off`; `OTEL_EXPORTER_OTLP_HEADERS` is never printed. `CS_DISPATCH_DRY_RUN=1` prints the tmux command with header values redacted and exits before the worktree exists.
 
 ## The standing obligation — read this before anything else
@@ -180,11 +180,25 @@ project's `CLAUDE.md` says otherwise.
    denies batched or conditional shell (`gh pr merge` inside an `if`, `for`
    loops over merges) and allows the same commands run plainly. A denial is a
    reason to split the line, not to stop.
+8a. **Token saver for your own session.** You are the longest-running, most
+   token-heavy session in the fleet. Unless `orchestrator.eco` is `false`, turn
+   eco on for this session, the same call `/cs-eco` makes:
+
+   ```sh
+   python3 "${CLAUDE_SKILL_DIR}/../../hooks/eco_ctl.py" on --session "${CLAUDE_SESSION_ID}"
+   ```
+
+   Keep the status line it prints and put it in the board's header (Phase 5),
+   with the note that early compaction (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`)
+   applies only to the sessions launched with it — the workers, not you. With
+   `orchestrator.eco: false`, do not run it. A failed call is not a stop: note
+   it on the board and go on. `eco` in step 9's `config` is `true` when eco is
+   on for you, `false` otherwise.
 9. **Record that you started** — the last step of Phase 0, after the board and
    configuration are resolved (see *Events* below):
 
    ```sh
-   python3 ${CLAUDE_SKILL_DIR}/scripts/emit.py orchestrator.started session=<your ListAgents name> 'config:={"base":"<base>","maxSlots":<n>,"readyLabel":"<label>","specDir":<"<specDir>" or null>,"checks":["<check>"],"mergeMethod":"<method>","autoMerge":true}'
+   python3 ${CLAUDE_SKILL_DIR}/scripts/emit.py orchestrator.started session=<your ListAgents name> 'config:={"base":"<base>","maxSlots":<n>,"readyLabel":"<label>","specDir":<"<specDir>" or null>,"checks":["<check>"],"mergeMethod":"<method>","autoMerge":true,"eco":<true|false>}'
    ```
 
 ### Events

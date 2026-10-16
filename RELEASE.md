@@ -1,5 +1,19 @@
 # Release Notes
 
+## v1.26.1 (2026-10-16)
+
+### Improvements
+
+- **`/cs-orchestrator`** — Phase 0 step 8a turns `/cs-eco` on for the orchestrator's own session (`hooks/eco_ctl.py on --session "${CLAUDE_SESSION_ID}"`), the longest-running session in the fleet. `orchestrator.eco: false` skips it. The eco status line goes on the board, with the note that early compaction applies only to the workers. `orchestrator.started` carries `config.eco`
+
+### Files Changed
+
+- `skills/orchestrator/SKILL.md`, `skills/orchestrator/EVENTS.md` — new Phase 0 step, `eco` in the `orchestrator.started` config
+- `CLAUDE.md`, `README.md` — docs
+- `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` — version bump to 1.26.1
+
+---
+
 ## v1.26.0 (2026-10-16)
 
 ### New Skills

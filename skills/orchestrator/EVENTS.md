@@ -79,7 +79,7 @@ requires `slot` in the envelope.
 
 | Type | Emitted by | `data` |
 |---|---|---|
-| `orchestrator.started` | orchestrator SKILL (Phase 0, end) | **session** (ListAgents name), **config** (resolved base, maxSlots, readyLabel, specDir, checks, mergeMethod, autoMerge) |
+| `orchestrator.started` | orchestrator SKILL (Phase 0, end) | **session** (ListAgents name), **config** (resolved base, maxSlots, readyLabel, specDir, checks, mergeMethod, autoMerge, eco — whether eco is on for the orchestrator's own session) |
 | `orchestrator.stopped` | orchestrator SKILL (`stop all`, or the person ends it) | **reason** |
 | `orchestrator.heartbeat` | watch.sh on `HEARTBEAT` | **slots** (array) |
 | `round.started` | orchestrator SKILL (Phase 5, after writing the board) | **round** (`HHMM`), **occupied**, **max**, **free**, **board** (path) |
