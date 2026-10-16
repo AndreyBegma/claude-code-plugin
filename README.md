@@ -89,6 +89,12 @@ Requirements:
 | `/cs-clean [--dry-run] [--auto]` | Post-merge cleanup: delete branches and worktrees of merged pull requests, close the issues they resolved but GitHub left open |
 | `/cs-init [name] [dir]` | Scaffold a fullstack monorepo (Bun + Turborepo, NestJS + Prisma + PostgreSQL, Next.js + Tailwind, Biome), verified end to end |
 
+**Session**
+
+| Command | What it does |
+|---|---|
+| `/cs-eco [on\|off\|default on\|off\|status\|stats\|snippet]` | Token saver for the current session: filtered command output (via `agentdock-runner`), soft read guard and read dedup, cut MCP results, concise working register, haiku `scout` agent; per session plus a machine default |
+
 ## Usage
 
 ```bash
@@ -134,7 +140,31 @@ Requirements:
 
 # New project
 /cs-init acme ~/dev/acme
+
+# Save tokens in this session
+/cs-eco
+/cs-eco stats
+/cs-eco default on                   # every new session on this machine
 ```
+
+## Token saver
+
+`/cs-eco` turns on a set of token-saving techniques for the session it runs in. It works in any project the plugin is loaded in, including the orchestrator's own session. Every hook is a no-op until eco is on for that session, `CS_ECO=on` is in the environment, or the machine default is on. Each hook fails open.
+
+| Technique | What happens while eco is on |
+|---|---|
+| Command filter | Covered commands (`bun run test`, `tsc`, `git log`…) run as `agentdock-runner filter -- …`, which keeps the failures and drops the noise. This only happens in `bypassPermissions` and `auto` modes: bypass gets an `allow`, and auto gets no decision, so the classifier judges the wrapped command. It never happens in default, plan or acceptEdits. It needs [`agentdock-runner`](https://www.npmjs.com/package/agentdock-runner) on `PATH` (≥ 0.12.1 for auto); without it, everything else still works. `AGENTDOCK_RAW=1 <cmd>` runs one command unfiltered |
+| Read guard | The first whole-file `Read` of a file over 400 lines is refused with its size and an outline of its headings and top-level symbols. Repeating the same call reads it |
+| Read dedup | A repeated `Read` of the same path and range, with the file unchanged, is refused once with "already in context since …". Repeating it reads it. Both soft denials reset at compaction |
+| MCP cut | An MCP result over 16,000 characters becomes head + tail. The full text is saved under the session's state dir and its path is shown |
+| Working register | Concise-answer instructions, injected once per session (again after compaction or `/clear`) |
+| `scout` agent | A read-only Haiku subagent for broad searches and many-file reads; it returns a conclusion, not file dumps |
+| Early compaction | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, read when Claude Code starts. `/cs-orchestrator` workers get 70 |
+| Stats and statusline | `/cs-eco stats` reports the savings. `hooks/eco-statusline.sh` prints `eco on · saved ≈12.3k tok · ctx 43%` |
+
+The plugin never edits your settings. To use the statusline, run `/cs-eco snippet` and paste the `statusLine` block it prints into `~/.claude/settings.json`, or call the script from your own statusline with the same stdin. The path changes when the plugin updates, so re-run `snippet` after an update.
+
+State lives in `${XDG_STATE_HOME:-~/.local/state}/cs-eco/` and the machine default in `${XDG_CONFIG_HOME:-~/.config}/cs-eco/config.json` (`{"default": "on", "mcpMaxChars": 16000}`). Savings are recorded per session as JSONL rows in AgentDock's `filter.stats` shape.
 
 ## Autonomous fleet
 
@@ -145,6 +175,7 @@ Requirements:
 3. **Fence** — each brief carries `owns:` / `never:` globs; `fence.py` runs as a `PreToolUse` hook (passed with `--settings`, nothing committed) and refuses writes outside them, including shell writes it can parse.
 4. **Channel** — workers report through `.orchestrator-reply.md`; `watch.sh` under `Monitor` wakes the orchestrator on PR, reply, idle, dead-session and quota events.
 5. **Merge & refill** — green, mergeable PRs are merged by the orchestrator, worktrees removed, and the next ready issue dispatched in the same pass. Dead workers are resumed in their worktree.
+6. **Token saver** — every worker starts with `/cs-eco` on (`CS_ECO=on`) and compacts at 70 % of the context window. Set `orchestrator.eco: false` to turn this off.
 
 Requirements: `git` ≥ 2.31, `gh` (authenticated), `tmux` ≥ 3.2, `python3`, `claude` on `PATH`.
 
@@ -190,12 +221,13 @@ Create `.code-analyzer-config.json` in the project root to customize analysis:
     "install": "bun install",
     "checks": ["bun run lint", "bun run test", "bun run build"],
     "mergeMethod": "merge",
-    "autoMerge": true
+    "autoMerge": true,
+    "eco": true
   }
 }
 ```
 
-Every `orchestrator` key is optional — base defaults to origin's default branch, install and checks are detected from the project.
+Every `orchestrator` key is optional — base defaults to origin's default branch, install and checks are detected from the project. `eco: false` launches workers without the token saver and early compaction.
 
 ## How it works
 
@@ -245,7 +277,8 @@ Skills will offer to install missing MCPs when they would improve analysis quali
 
 ```
 .claude-plugin/        plugin and marketplace manifests
-hooks/                 kill_guard.py, the PreToolUse guard installed with the plugin
+hooks/                 kill_guard.py (PreToolUse kill guard), eco_*.py and eco-statusline.sh (/cs-eco), tests
+agents/                scout.md, the haiku search subagent
 skills/<name>/SKILL.md one directory per skill
 skills/_shared/        style, severity, confirmation and SEO references (inlined into skills)
 skills/init/           scaffold.sh and the monorepo template

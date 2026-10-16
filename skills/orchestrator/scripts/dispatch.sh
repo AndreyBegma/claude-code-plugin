@@ -34,6 +34,10 @@
 #   CS_DISPATCH_DRY_RUN  1: print the tmux command (OTLP header values redacted)
 #                  and exit 0 before anything is created. For tests.
 #
+#   Token saver: every worker gets CS_ECO=on and
+#   CLAUDE_AUTOCOMPACT_PCT_OVERRIDE (inherited value, else 70) unless
+#   .code-analyzer-config.json in the repository sets "orchestrator": {"eco": false}.
+#
 #   Forwarded to the worker with `tmux -e` when set — an allowlist, never the
 #   whole environment:
 #     OTEL_EXPORTER_OTLP_ENDPOINT  OTEL_EXPORTER_OTLP_PROTOCOL
@@ -164,6 +168,26 @@ for v in "${FORWARD_VARS[@]}"; do
   [ -n "${!v+x}" ] && ENV_ARGS+=(-e "$v=${!v}")
 done
 
+# Token saver (/cs-eco): on for every worker, with early compaction, unless the
+# repository's `.code-analyzer-config.json` says `orchestrator.eco: false`.
+# `CS_ECO=on` is read by the plugin's hooks; the compaction threshold is read by
+# Claude Code at start, so it can only be set here. An inherited
+# CLAUDE_AUTOCOMPACT_PCT_OVERRIDE wins over the default of 70.
+ECO="$(python3 -c '
+import json, sys
+try:
+    cfg = json.load(open(sys.argv[1]))
+    print("off" if (cfg.get("orchestrator") or {}).get("eco") is False else "on")
+except Exception:
+    print("on")
+' "$REPO/.code-analyzer-config.json" 2>/dev/null || echo on)"
+if [ "$ECO" = on ]; then
+  ENV_ARGS+=(-e "CS_ECO=on" -e "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=${CLAUDE_AUTOCOMPACT_PCT_OVERRIDE:-70}")
+  ECO_NOTE="eco on"
+else
+  ECO_NOTE="eco off"
+fi
+
 # OTel resource attributes: the inherited value first, then ours. Values are
 # percent-encoded for the characters the W3C baggage format reserves.
 pct() {
@@ -230,7 +254,7 @@ TMUX_ARGS=(new-session -d -s "$NAME" -c "$WT"
 # Dry run: the command as it would be run, nothing created. Header values are
 # redacted — they carry collector tokens.
 if [ "${CS_DISPATCH_DRY_RUN:-}" = "1" ]; then
-  printf 'dispatch dry-run: %s · %s\n' "$NAME" "$TELEMETRY_NOTE"
+  printf 'dispatch dry-run: %s · %s · %s\n' "$NAME" "$TELEMETRY_NOTE" "$ECO_NOTE"
   printf 'tmux'
   for ((i = 0; i < ${#TMUX_ARGS[@]} - 1; i++)); do
     a="${TMUX_ARGS[i]}"
@@ -378,7 +402,7 @@ fi
 CS_REPO="$REPO" CS_SLOT="$SLOT" CS_ISSUE="$ISSUE" python3 "$HERE/emit.py" "${EMIT_ARGS[@]}" || true
 
 if [ "$DELAY" -gt 0 ]; then
-  echo "$NAME · $MODEL · $WT · $(git -C "$WT" branch --show-current) · starts in ${DELAY}s · stop with: tmux kill-session -t $NAME · $TELEMETRY_NOTE"
+  echo "$NAME · $MODEL · $WT · $(git -C "$WT" branch --show-current) · starts in ${DELAY}s · stop with: tmux kill-session -t $NAME · $TELEMETRY_NOTE · $ECO_NOTE"
 else
-  echo "$NAME · $MODEL · $WT · $(git -C "$WT" branch --show-current) · tmux attach -t $NAME · $TELEMETRY_NOTE"
+  echo "$NAME · $MODEL · $WT · $(git -C "$WT" branch --show-current) · tmux attach -t $NAME · $TELEMETRY_NOTE · $ECO_NOTE"
 fi

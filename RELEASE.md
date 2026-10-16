@@ -1,5 +1,33 @@
 # Release Notes
 
+## v1.26.0 (2026-10-16)
+
+### New Skills
+
+- **`/cs-eco`** — token saver for any Claude Code session the plugin is loaded in
+  - Turns on per session (`/cs-eco`, `/cs-eco off`) or for new sessions via a machine default (`/cs-eco default on|off`); `status`, `stats`, `snippet`. Learns its session id from `${CLAUDE_SESSION_ID}` substitution in the skill
+  - **Command filter:** delegates to `agentdock-runner filter-hook` (the compiled platform binary, resolved once per session; the npm shim is only a fallback), only in `bypassPermissions` and `auto`, never in default/plan/acceptEdits. The rewritten command carries the session's `AGENTDOCK_FILTER_*` assignments, so savings land in the session's own stats file and `/cs-eco off` takes effect on the next call. Without `agentdock-runner` every other technique still works, and status says "command filter: unavailable (agentdock-runner not installed)"
+  - **Soft read guard:** a whole-file `Read` over 400 lines is refused once with its size and an outline. **Soft dedup:** a repeated `Read` of an unchanged range is refused once ("already in context since …"). Repeating the call passes; both reset at compaction and `/clear`
+  - **MCP cut:** results over 16,000 characters become head + tail via `updatedMCPToolOutput`, and the full text is saved under the session's state dir
+  - **Working register** injected once per session (SessionStart `additionalContext`, again after compaction), a haiku **`scout`** agent (`agents/scout.md`), the **`eco-statusline.sh`** statusline, and savings recorded as JSONL in AgentDock's `filter.stats` row shape (`runKind: skill` until AgentDock adds `manual`; `CS_ECO_RUN_KIND` overrides)
+  - Every hook is a no-op unless eco is on, fails open, and stays under p95 50 ms (tested). `kill_guard.py` still runs first, and eco never answers a call it denies
+
+### Improvements
+
+- **`/cs-orchestrator`** — workers start with `CS_ECO=on` and early compaction (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, inherited else 70); `.code-analyzer-config.json` → `orchestrator.eco: false` opts out. The launch line ends `· eco on|off`
+- **`kill_guard.py`** — the check is exposed as `violation(command)` for reuse; behaviour unchanged
+
+### Files Changed
+
+- `skills/eco/SKILL.md`, `agents/scout.md` — new
+- `hooks/eco_run.py`, `hooks/eco_lib.py`, `hooks/eco_hook.py`, `hooks/eco_ctl.py`, `hooks/eco-statusline.sh`, `hooks/eco_test.py` — new
+- `hooks/hooks.json`, `hooks/kill_guard.py` — eco hooks registered after the kill guard
+- `skills/orchestrator/scripts/dispatch.sh`, `skills/orchestrator/scripts/dispatch_test.py`, `skills/orchestrator/SKILL.md` — eco for workers
+- `CLAUDE.md`, `README.md` — docs
+- `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` — version bump to 1.26.0
+
+---
+
 ## v1.25.0 (2026-10-15)
 
 ### New Skills

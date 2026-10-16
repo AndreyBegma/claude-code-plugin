@@ -24,28 +24,35 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "skills", "orchestrator", "scripts"))
 
 
+def violation(command):
+    """The denial reason for `command`, or None. Shared with `eco_hook.py`,
+    which must never rewrite or allow a call this guard refuses."""
+    if "kill" not in command:
+        return None
+    import fence  # noqa: E402
+
+    for cmd in fence.scan(command):
+        reason = fence.signal_violation(cmd)
+        if reason:
+            return reason.replace("the fence", "the kill guard").replace("The fence", "The kill guard")
+    return None
+
+
 def main():
     try:
         data = json.load(sys.stdin)
         if data.get("tool_name") != "Bash":
             return
         command = (data.get("tool_input") or {}).get("command") or ""
-        if not any(w in command for w in ("kill",)):
-            return
-        import fence  # noqa: E402
-
-        for cmd in fence.scan(command):
-            reason = fence.signal_violation(cmd)
-            if reason:
-                reason = reason.replace("the fence", "the kill guard").replace("The fence", "The kill guard")
-                print(json.dumps({
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": reason,
-                    }
-                }))
-                return
+        reason = violation(command)
+        if reason:
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": reason,
+                }
+            }))
     except Exception:
         return
 

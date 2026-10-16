@@ -10,6 +10,50 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -S \"${CLAUDE_PLUGIN_ROOT}/hooks/eco_run.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -S \"${CLAUDE_PLUGIN_ROOT}/hooks/eco_run.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -S \"${CLAUDE_PLUGIN_ROOT}/hooks/eco_run.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -S \"${CLAUDE_PLUGIN_ROOT}/hooks/eco_run.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }
