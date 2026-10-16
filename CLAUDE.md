@@ -40,8 +40,17 @@ skills/
   worker/SKILL.md                       — /cs-worker
   orchestrator/SKILL.md                 — /cs-orchestrator
   clean/SKILL.md                        — /cs-clean
+  eco/SKILL.md                          — /cs-eco
   orchestrator/EVENTS.md                — events.jsonl / state.json contract and event catalogue
   orchestrator/scripts/                 — dispatch.sh, watch.sh, fence.py, fence_test.py, emit.py, emit_test.py, dispatch_test.py, wiring_test.sh, spec_dir.py (specDir resolver, shared with cs-spec), spec_dir_test.py, launch pre-flight helpers
+hooks/
+  hooks.json                            — plugin hooks: kill_guard (PreToolUse Bash, first), eco_run (PreToolUse Bash|Read, PostToolUse Read|mcp__*, SessionStart, PreCompact)
+  kill_guard.py                         — refuses kill-by-name/pattern in every session
+  eco_run.py                            — tiny hook entry (on/off check), imports eco_hook.py only when eco is on
+  eco_lib.py, eco_hook.py, eco_ctl.py   — /cs-eco state, hook logic and CLI; eco_test.py
+  eco-statusline.sh                     — statusline script (never installed into settings by the plugin)
+agents/
+  scout.md                              — haiku read-only search subagent
 ```
 
 ## Skills
@@ -62,6 +71,7 @@ skills/
 | `/cs-feature <#issue\|desc> [--auto] [--worker]` | Feature or bug fix from request to PR — study, plan, approval (or `--auto`), issue, branch, implement, checks, PR              |
 | `/cs-orchestrator [start\|status\|next\|stop]`   | Autonomous fleet — parallel worker sessions in git worktrees for `cs:ready` issues, auto-merge green PRs, refill slots        |
 | `/cs-worker <brief>`                             | Worker session launched by `/cs-orchestrator` — one issue, one worktree, ownership fence, never merges                        |
+| `/cs-eco [on\|off\|default on\|off\|status\|stats\|snippet]` | Token saver for the current session — agentdock-runner command filter (bypass/auto only), soft read guard + dedup, MCP output cut, working register, `scout` agent; per session + machine default; fleet workers on by default |
 | `/cs-clean [--dry-run] [--auto] [--local] [--abandoned]` | Post-merge cleanup — deletes remote/local branches and clean worktrees of merged PRs, closes issues they resolved but GitHub left open; confirmed unless `--auto` |
 | `/cs-perf [path\|category]`                     | Performance analyzer — N+1 queries, re-renders, memory leaks, bundle size                                                     |
 | `/cs-ux-review [url\|focus]`                    | UX analysis — friction points, redesign proposals with before/after mockups                                                   |
@@ -109,6 +119,7 @@ Skills auto-detect missing MCPs and offer to install via `AskUserQuestion`. If s
 - Feature skill (`cs-feature`) modifies source code — only after an approved plan (or a posted plan under `--auto`), always on a feature branch, never merges
 - Orchestrator (`cs-orchestrator`) never writes product code; it creates worktrees/branches, labels issues, and merges green PRs (unless `orchestrator.autoMerge` is `false`). After each merge it deletes the branch (remote and local) and closes the resolved issue itself — `Closes #n` does nothing when the base is not the default branch. Workers (`cs-worker`) are fenced by `orchestrator/scripts/fence.py` and never merge
 - Skill-bundled scripts are referenced as `${CLAUDE_SKILL_DIR}/scripts/...`; run `python3 skills/orchestrator/scripts/fence_test.py` after changing `fence.py`, and `bash skills/orchestrator/scripts/wiring_test.sh` after changing the `emit` calls in `watch.sh` / `dispatch.sh`, and `python3 skills/orchestrator/scripts/dispatch_test.py` after changing the worker environment or launcher in `dispatch.sh`, and `python3 skills/orchestrator/scripts/spec_dir_test.py` after changing `spec_dir.py` (the `specDir` grammar is implemented there only — cs-spec calls it as `${CLAUDE_SKILL_DIR}/../orchestrator/scripts/spec_dir.py`)
+- Token saver (`cs-eco`) hooks run in **every** session that loads the plugin: each one must be a no-op unless eco is on for that `session_id` (or `CS_ECO=on`, or the machine default), must fail open (any error → no output, exit 0), and must stay under the p95 50 ms latency test. They never rewrite Bash outside `bypassPermissions`/`auto`, never emit a decision for a call `kill_guard.py` denies, and never write outside `${XDG_STATE_HOME:-~/.local/state}/cs-eco/` and `${XDG_CONFIG_HOME:-~/.config}/cs-eco/` — never the user's `settings.json`. Run `python3 hooks/eco_test.py` after changing anything in `hooks/`
 - Prioritizes HIGH/CRITICAL findings; lower-severity issues included where appropriate
 - Respects `$ARGUMENTS` to analyze specific directories
 - All user confirmations use **interactive selectors** (`AskUserQuestion`), not text prompts — patterns inlined into each skill
