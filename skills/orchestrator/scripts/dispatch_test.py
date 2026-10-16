@@ -95,8 +95,9 @@ def main():
         base = r.stdout
         check("plain dry run exits 0", r.returncode == 0, r.stderr)
         e_names = re.findall(r"-e (\w+)=", base)
-        check("plain dry run adds no -e flags beyond the fixed ones",
-              e_names == ["CLAUDE_CONFIG_DIR", "PATH", "CS_EMIT", "CS_REPO", "CS_SLOT", "CS_ISSUE"],
+        check("plain dry run adds no -e flags beyond the fixed ones and eco",
+              e_names == ["CLAUDE_CONFIG_DIR", "PATH", "CS_EMIT", "CS_REPO", "CS_SLOT", "CS_ISSUE",
+                          "CS_ECO", "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"],
               str(e_names))
         check("plain dry run says telemetry off", "telemetry off" in base, base)
         check("plain dry run launches plain claude", " claude --remote-control cs-i1 " in base, base)
@@ -165,6 +166,33 @@ def main():
         r = run(fx, {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://h:1", "CLAUDE_CODE_ENABLE_TELEMETRY": "0"})
         check("CLAUDE_CODE_ENABLE_TELEMETRY=0 keeps telemetry off",
               "telemetry off" in r.stdout and "OTEL_LOGS_EXPORTER=otlp" not in r.stdout, r.stdout)
+
+        # 11. Token saver: on by default, with early compaction; config opts out.
+        r = run(fx)
+        check("eco: workers start with CS_ECO=on", "-e CS_ECO=on" in r.stdout, r.stdout)
+        check("eco: early compaction at 70 by default",
+              "-e CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70" in r.stdout, r.stdout)
+        check("eco: the dry run says eco on", "· eco on" in r.stdout, r.stdout)
+        r = run(fx, {"CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "55"})
+        check("eco: an inherited compaction threshold wins",
+              "-e CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=55" in r.stdout, r.stdout)
+        config = os.path.join(fx[1], ".code-analyzer-config.json")
+        with open(config, "w") as f:
+            f.write('{"orchestrator": {"eco": false}}')
+        r = run(fx)
+        check("eco: orchestrator.eco false turns it off",
+              r.returncode == 0 and "CS_ECO" not in r.stdout
+              and "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE" not in r.stdout and "· eco off" in r.stdout,
+              r.stdout + r.stderr)
+        with open(config, "w") as f:
+            f.write('{"orchestrator": {"eco": true, "autoMerge": false}}')
+        r = run(fx)
+        check("eco: orchestrator.eco true keeps it on", "-e CS_ECO=on" in r.stdout, r.stdout)
+        with open(config, "w") as f:
+            f.write("{ not json")
+        r = run(fx)
+        check("eco: an unreadable config keeps it on", "-e CS_ECO=on" in r.stdout, r.stdout)
+        os.remove(config)
         del cfg
     finally:
         shutil.rmtree(fx[0], ignore_errors=True)

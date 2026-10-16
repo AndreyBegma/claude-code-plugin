@@ -70,7 +70,8 @@ board.
   "mergeMethod": "merge",
   "autoMerge": true,
   "defaultModel": "sonnet",
-  "triageSkill": null
+  "triageSkill": null,
+  "eco": true
 }
 ```
 
@@ -85,6 +86,7 @@ board.
 | `autoMerge` | `true`. `false` turns Phase 8 step 1 into "tell the person which pull requests are green" |
 | `defaultModel` | `sonnet` — used only when Phase 4 genuinely cannot tell |
 | `triageSkill` | none. A skill to run in a subagent when the queue is dry (e.g. an error-tracker triage that files bug issues) |
+| `eco` | `true`. Every worker starts with the token saver on (`CS_ECO=on`, see `/cs-eco`) and early compaction (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, inherited value else `70`). `false` launches workers without either. `dispatch.sh` reads it directly from `.code-analyzer-config.json` |
 
 ### Telemetry and launcher
 
@@ -94,6 +96,7 @@ Export `OTEL_EXPORTER_OTLP_ENDPOINT` (and optional `AGENTDOCK_PROJECT` / `AGENTD
 - **Switch.** With an endpoint set and `CLAUDE_CODE_ENABLE_TELEMETRY` unset, dispatch sets it to `1` and defaults `OTEL_LOGS_EXPORTER` and `OTEL_METRICS_EXPORTER` to `otlp`. Without an endpoint nothing changes.
 - **Tags.** `OTEL_RESOURCE_ATTRIBUTES` keeps any inherited value and appends `agentdock.project` (`AGENTDOCK_PROJECT`, else parsed from `origin`), `agentdock.slot`, `agentdock.issue` (digits of an `i<n>` slot, else the brief's `Issue:` line) and `agentdock.run` (`AGENTDOCK_RUN`, else `<slot>-<YYYYMMDDHHMMSS>`). The keys are a correlation convention any collector may use.
 - **Launcher.** `CS_CLAUDE_BIN` is one executable path or name, used for the pre-flight and the launch. A value with spaces (a shell function such as `claude rc`) is refused; select the profile with `CLAUDE_CONFIG_DIR`.
+- **Token saver.** Unless `orchestrator.eco` is `false`, dispatch adds `-e CS_ECO=on -e CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=<n>` and the launch line ends `· eco on`. The worker's Bash output is filtered through `agentdock-runner` when it is installed (workers run in `bypassPermissions`), and its reads are soft-guarded. A worker can still run `/cs-eco off` for its own session. Your own session is not changed: run `/cs-eco` there if you want it.
 - **No secrets on stdout.** The launch line ends `telemetry on → <host:port>` or `telemetry off`; `OTEL_EXPORTER_OTLP_HEADERS` is never printed. `CS_DISPATCH_DRY_RUN=1` prints the tmux command with header values redacted and exits before the worktree exists.
 
 ## The standing obligation — read this before anything else
